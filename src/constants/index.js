@@ -13,11 +13,11 @@ export const NOTIFICATION_CHANNEL_ID = 'lirr-ticket-alerts';
 
 // Dwell time in milliseconds (60 seconds)
 // User must remain in geofence for this duration before notification fires
-export const DWELL_TIME_MS = 60000;
+export const DWELL_TIME_MS = 5000; // TODO: Change back to 60000 for production
 
 // Global cooldown in milliseconds (90 minutes)
 // Minimum time between notifications
-export const GLOBAL_COOLDOWN_MS = 5400000;
+export const GLOBAL_COOLDOWN_MS = 5000; // TODO: Change back to 5400000 for production
 
 // AsyncStorage keys
 export const STORAGE_KEYS = {

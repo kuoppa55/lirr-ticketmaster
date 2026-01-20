@@ -19,8 +19,13 @@ import {
     stopGeofencing,
     checkPermissions,
 } from '../services/geofencing';
-import { sendTestNotification } from '../services/notifications';
-import { getSelectedStations, getRemainingCooldown } from '../services/storage';
+import { sendTestNotification, sendTicketReminder } from '../services/notifications';
+import {
+    getSelectedStations,
+    getRemainingCooldown,
+    isInCooldown,
+    setLastNotificationTime,
+} from '../services/storage';
 import { MAJOR_JUNCTIONS } from '../data/stations';
 
 /**
@@ -104,6 +109,27 @@ export default function HomeScreen({ onEditStations }) {
             Alert.alert('Success', 'Test notification sent!');
         } catch (error) {
             Alert.alert('Error', 'Failed to send test notification.');
+        }
+    };
+
+    // DEBUG: Simulate geofence entry to test full notification flow
+    const handleSimulateStationEntry = async () => {
+        try {
+            const inCooldown = await isInCooldown();
+            if (inCooldown) {
+                Alert.alert(
+                    'In Cooldown',
+                    'Notification skipped due to cooldown. Wait for cooldown to expire or pull to refresh.'
+                );
+                return;
+            }
+
+            await sendTicketReminder('Babylon');
+            await setLastNotificationTime(Date.now());
+            await loadStatus(); // Refresh to show new cooldown
+            Alert.alert('Success', 'Simulated station entry - notification sent!');
+        } catch (error) {
+            Alert.alert('Error', `Failed to simulate: ${error.message}`);
         }
     };
 
@@ -230,6 +256,15 @@ export default function HomeScreen({ onEditStations }) {
                 >
                     <Text style={styles.buttonTextOutline}>
                         Send Test Notification
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.button, styles.buttonDebug]}
+                    onPress={handleSimulateStationEntry}
+                >
+                    <Text style={styles.buttonTextDebug}>
+                        DEBUG: Simulate Station Entry
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -419,6 +454,14 @@ const styles = StyleSheet.create({
     buttonTextOutline: {
         color: '#0066CC',
         fontSize: 18,
+        fontWeight: '600',
+    },
+    buttonDebug: {
+        backgroundColor: '#FF9500',
+    },
+    buttonTextDebug: {
+        color: '#FFFFFF',
+        fontSize: 16,
         fontWeight: '600',
     },
     infoCard: {
