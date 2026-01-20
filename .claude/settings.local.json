@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:docs.expo.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(dir:*)",
+      "WebFetch(domain:data.ny.gov)"
+    ]
+  }
+}
