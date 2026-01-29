@@ -20,6 +20,8 @@ import {
     hasCompletedOnboarding,
     setOnboardingComplete,
     getSelectedStations,
+    addPendingDwellTimer,
+    removePendingDwellTimer,
 } from './src/services/storage';
 import {
     configureNotificationHandler,
@@ -34,6 +36,7 @@ import {
 
 import HomeScreen from './src/screens/HomeScreen';
 import StationSelectScreen from './src/screens/StationSelectScreen';
+import DebugScreen from './src/screens/DebugScreen';
 
 // In-memory tracking for dwell timers (persists while app process runs)
 const pendingDwellTimers = {};
@@ -57,11 +60,22 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
     const stationId = region?.identifier;
 
     if (!stationId) {
+        console.warn(
+            'Geofencing task received event with missing region.identifier:',
+            JSON.stringify({ eventType, region })
+        );
         return;
     }
 
     if (eventType === Location.GeofencingEventType.Enter) {
         console.log(`Entered geofence: ${stationId}`);
+
+        // Find station name for persistence
+        const station = findStationById(stationId);
+        const stationName = station?.name || 'LIRR Station';
+
+        // Persist dwell timer start (survives app restart)
+        await addPendingDwellTimer(stationId, stationName);
 
         // Start 60-second dwell timer
         pendingDwellTimers[stationId] = setTimeout(async () => {
@@ -71,12 +85,9 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
                 if (inCooldown) {
                     console.log('In cooldown period, skipping notification');
                     delete pendingDwellTimers[stationId];
+                    await removePendingDwellTimer(stationId);
                     return;
                 }
-
-                // Find station name
-                const station = findStationById(stationId);
-                const stationName = station?.name || 'LIRR Station';
 
                 // Send notification
                 await sendTicketReminder(stationName);
@@ -88,6 +99,7 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
                 console.error('Error sending notification:', err);
             } finally {
                 delete pendingDwellTimers[stationId];
+                await removePendingDwellTimer(stationId);
             }
         }, DWELL_TIME_MS);
     } else if (eventType === Location.GeofencingEventType.Exit) {
@@ -99,6 +111,8 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
             delete pendingDwellTimers[stationId];
             console.log(`Cancelled pending notification for: ${stationId}`);
         }
+        // Always remove persisted timer on exit
+        await removePendingDwellTimer(stationId);
     }
 });
 
@@ -202,6 +216,20 @@ export default function App() {
         setScreen('stations');
     };
 
+    /**
+     * Navigate to debug screen.
+     */
+    const handleOpenDebug = () => {
+        setScreen('debug');
+    };
+
+    /**
+     * Navigate back from debug screen to home.
+     */
+    const handleCloseDebug = () => {
+        setScreen('home');
+    };
+
     // Render loading state
     if (screen === 'loading') {
         return (
@@ -224,11 +252,24 @@ export default function App() {
         );
     }
 
+    // Render debug screen
+    if (screen === 'debug') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="light-content" />
+                <DebugScreen onBack={handleCloseDebug} />
+            </View>
+        );
+    }
+
     // Render home screen
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
-            <HomeScreen onEditStations={handleEditStations} />
+            <HomeScreen
+                onEditStations={handleEditStations}
+                onOpenDebug={handleOpenDebug}
+            />
         </View>
     );
 }

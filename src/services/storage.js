@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS, GLOBAL_COOLDOWN_MS } from '../constants';
+import { STORAGE_KEYS, GLOBAL_COOLDOWN_MS, DWELL_TIME_MS } from '../constants';
 
 /**
  * Save selected station IDs to storage.
@@ -169,6 +169,120 @@ export async function getRemainingCooldown() {
 }
 
 /**
+ * Add a pending dwell timer for a station.
+ * Persists timer state so it can survive app restarts.
+ *
+ * Args:
+ *     stationId: Unique identifier for the station.
+ *     stationName: Display name of the station.
+ *
+ * Returns:
+ *     The timer object that was stored, or null on error.
+ */
+export async function addPendingDwellTimer(stationId, stationName) {
+    try {
+        const timers = await getPendingDwellTimers();
+        const now = Date.now();
+        const timer = {
+            stationId,
+            stationName,
+            startedAt: now,
+            expiresAt: now + DWELL_TIME_MS,
+        };
+        timers[stationId] = timer;
+        await AsyncStorage.setItem(
+            STORAGE_KEYS.PENDING_DWELL_TIMERS,
+            JSON.stringify(timers)
+        );
+        return timer;
+    } catch (error) {
+        console.error('Error adding pending dwell timer:', error);
+        return null;
+    }
+}
+
+/**
+ * Remove a pending dwell timer for a station.
+ *
+ * Args:
+ *     stationId: Unique identifier for the station.
+ *
+ * Returns:
+ *     True if removal successful, false otherwise.
+ */
+export async function removePendingDwellTimer(stationId) {
+    try {
+        const timers = await getPendingDwellTimers();
+        if (timers[stationId]) {
+            delete timers[stationId];
+            await AsyncStorage.setItem(
+                STORAGE_KEYS.PENDING_DWELL_TIMERS,
+                JSON.stringify(timers)
+            );
+        }
+        return true;
+    } catch (error) {
+        console.error('Error removing pending dwell timer:', error);
+        return false;
+    }
+}
+
+/**
+ * Get all pending dwell timers, filtering out expired ones.
+ *
+ * Returns:
+ *     Object mapping stationId to timer objects (only non-expired).
+ */
+export async function getPendingDwellTimers() {
+    try {
+        const data = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_DWELL_TIMERS);
+        if (!data) {
+            return {};
+        }
+
+        const timers = JSON.parse(data);
+        const now = Date.now();
+        const activeTimers = {};
+
+        // Filter out expired timers
+        for (const [stationId, timer] of Object.entries(timers)) {
+            if (timer.expiresAt > now) {
+                activeTimers[stationId] = timer;
+            }
+        }
+
+        // Clean up expired timers in storage if any were removed
+        if (Object.keys(activeTimers).length !== Object.keys(timers).length) {
+            await AsyncStorage.setItem(
+                STORAGE_KEYS.PENDING_DWELL_TIMERS,
+                JSON.stringify(activeTimers)
+            );
+        }
+
+        return activeTimers;
+    } catch (error) {
+        console.error('Error getting pending dwell timers:', error);
+        return {};
+    }
+}
+
+/**
+ * Clear all pending dwell timers.
+ *
+ * Returns:
+ *     True if clear successful, false otherwise.
+ */
+export async function clearPendingDwellTimers() {
+    try {
+        await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_DWELL_TIMERS);
+        return true;
+    } catch (error) {
+        console.error('Error clearing pending dwell timers:', error);
+        return false;
+    }
+}
+
+/**
  * Clear all stored data.
  * Useful for debugging or resetting the app.
  *
@@ -181,6 +295,7 @@ export async function clearAllData() {
             STORAGE_KEYS.SELECTED_STATIONS,
             STORAGE_KEYS.ONBOARDING_COMPLETE,
             STORAGE_KEYS.LAST_NOTIFICATION_TIME,
+            STORAGE_KEYS.PENDING_DWELL_TIMERS,
         ]);
         return true;
     } catch (error) {

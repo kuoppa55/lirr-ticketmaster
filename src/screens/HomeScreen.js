@@ -33,8 +33,9 @@ import { MAJOR_JUNCTIONS } from '../data/stations';
  *
  * Args:
  *     onEditStations: Callback to navigate to station selection screen.
+ *     onOpenDebug: Callback to navigate to debug screen.
  */
-export default function HomeScreen({ onEditStations }) {
+export default function HomeScreen({ onEditStations, onOpenDebug }) {
     const [isActive, setIsActive] = useState(false);
     const [permissions, setPermissions] = useState({
         foreground: false,
@@ -267,6 +268,15 @@ export default function HomeScreen({ onEditStations }) {
                         DEBUG: Simulate Station Entry
                     </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.button, styles.buttonDebugInfo]}
+                    onPress={onOpenDebug}
+                >
+                    <Text style={styles.buttonTextDebugInfo}>
+                        Open Debug Screen
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             <View style={styles.infoCard}>
@@ -460,6 +470,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#FF9500',
     },
     buttonTextDebug: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    buttonDebugInfo: {
+        backgroundColor: '#8E44AD',
+    },
+    buttonTextDebugInfo: {
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
