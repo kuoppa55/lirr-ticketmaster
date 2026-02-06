@@ -5,7 +5,8 @@
       "WebFetch(domain:docs.expo.dev)",
       "WebFetch(domain:github.com)",
       "Bash(dir:*)",
-      "WebFetch(domain:data.ny.gov)"
+      "WebFetch(domain:data.ny.gov)",
+      "WebFetch(domain:en.wikipedia.org)"
     ]
   }
 }

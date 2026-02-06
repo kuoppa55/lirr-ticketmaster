@@ -13,7 +13,7 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
-import { LIRR_STATIONS, getBranches } from '../data/stations';
+import { getBranches, getStationsByBranch } from '../data/stations';
 import { useStationSelection } from '../hooks/useStationSelection';
 
 /**
@@ -40,7 +40,7 @@ export default function StationSelectScreen({ onComplete, isOnboarding }) {
         const branches = getBranches();
         return branches.map((branch) => ({
             title: branch,
-            data: LIRR_STATIONS.filter((s) => s.branch === branch),
+            data: getStationsByBranch(branch),
         }));
     }, []);
 

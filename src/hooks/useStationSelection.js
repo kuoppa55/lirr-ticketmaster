@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 import {
     MAJOR_JUNCTIONS,
     getAvailableSlots,
-    LIRR_STATIONS,
+    getStationsByBranch,
 } from '../data/stations';
 import {
     getSelectedStations,
@@ -178,9 +178,9 @@ export function useStationSelection() {
      */
     const selectBranch = useCallback(
         (branch) => {
-            const branchStations = LIRR_STATIONS.filter(
-                (s) => s.branch === branch
-            ).map((s) => s.identifier);
+            const branchStations = getStationsByBranch(branch).map(
+                (s) => s.identifier
+            );
 
             const newSelections = branchStations.filter(
                 (id) =>
@@ -208,9 +208,9 @@ export function useStationSelection() {
      *     branch: Branch name to deselect.
      */
     const deselectBranch = useCallback((branch) => {
-        const branchStationIds = LIRR_STATIONS.filter(
-            (s) => s.branch === branch
-        ).map((s) => s.identifier);
+        const branchStationIds = getStationsByBranch(branch).map(
+            (s) => s.identifier
+        );
 
         setSelectedIds((prev) =>
             prev.filter(
