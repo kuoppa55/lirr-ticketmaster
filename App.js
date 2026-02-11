@@ -11,7 +11,7 @@ import { View, StyleSheet, StatusBar } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 
-import { GEOFENCING_TASK_NAME, DWELL_TIME_MS } from './src/constants';
+import { GEOFENCING_TASK_NAME } from './src/constants';
 import { findStationById } from './src/data/stations';
 import { sendTicketReminder } from './src/services/notifications';
 import {
@@ -22,6 +22,8 @@ import {
     getSelectedStations,
     addPendingDwellTimer,
     removePendingDwellTimer,
+    getUserSettings,
+    saveUserSettings,
 } from './src/services/storage';
 import {
     configureNotificationHandler,
@@ -33,10 +35,13 @@ import {
     requestBackgroundPermissions,
     startGeofencing,
 } from './src/services/geofencing';
+import { useSettings } from './src/hooks/useSettings';
 
 import HomeScreen from './src/screens/HomeScreen';
 import StationSelectScreen from './src/screens/StationSelectScreen';
 import DebugScreen from './src/screens/DebugScreen';
+import SettingsConfigScreen from './src/screens/SettingsConfigScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 // In-memory tracking for dwell timers (persists while app process runs)
 const pendingDwellTimers = {};
@@ -77,7 +82,10 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
         // Persist dwell timer start (survives app restart)
         await addPendingDwellTimer(stationId, stationName);
 
-        // Start 60-second dwell timer
+        // Read dwell time from user settings
+        const settings = await getUserSettings();
+
+        // Start dwell timer using user-configured duration
         pendingDwellTimers[stationId] = setTimeout(async () => {
             try {
                 // Check global cooldown before sending
@@ -93,7 +101,7 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
                 await sendTicketReminder(stationName);
                 console.log(`Notification sent for: ${stationName}`);
 
-                // Start 90-minute cooldown
+                // Start cooldown
                 await setLastNotificationTime(Date.now());
             } catch (err) {
                 console.error('Error sending notification:', err);
@@ -101,11 +109,11 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
                 delete pendingDwellTimers[stationId];
                 await removePendingDwellTimer(stationId);
             }
-        }, DWELL_TIME_MS);
+        }, settings.dwellTimeMs);
     } else if (eventType === Location.GeofencingEventType.Exit) {
         console.log(`Exited geofence: ${stationId}`);
 
-        // User left before 60 seconds - cancel the pending notification
+        // User left before dwell time expired - cancel the pending notification
         if (pendingDwellTimers[stationId]) {
             clearTimeout(pendingDwellTimers[stationId]);
             delete pendingDwellTimers[stationId];
@@ -122,6 +130,15 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
 export default function App() {
     const [screen, setScreen] = useState('loading');
     const [isOnboarding, setIsOnboarding] = useState(false);
+    const {
+        settings,
+        loading: settingsLoading,
+        updateSetting,
+        saveSettings,
+    } = useSettings();
+
+    // Track previous radius to detect changes that need geofence restart
+    const [savedRadiusMeters, setSavedRadiusMeters] = useState(null);
 
     /**
      * Initialize the app: check onboarding status, request permissions,
@@ -144,6 +161,10 @@ export default function App() {
                 setScreen('stations');
                 return;
             }
+
+            // Load saved radius for change detection
+            const currentSettings = await getUserSettings();
+            setSavedRadiusMeters(currentSettings.geofenceRadiusMeters);
 
             // Request permissions
             const notificationGranted = await requestNotificationPermissions();
@@ -181,31 +202,86 @@ export default function App() {
     }, [initializeApp]);
 
     /**
-     * Handle completion of station selection (onboarding or edit).
+     * Handle completion of station selection during onboarding.
+     * Proceed to settings configuration screen.
      */
     const handleStationSelectionComplete = async () => {
         if (isOnboarding) {
-            // Complete onboarding
-            await setOnboardingComplete();
-            setIsOnboarding(false);
+            // During onboarding, proceed to settings config screen
+            setScreen('onboarding-settings');
+            return;
+        }
 
-            // Request permissions
-            const notificationGranted = await requestNotificationPermissions();
-            if (!notificationGranted) {
-                console.warn('Notification permission denied');
-            }
+        // When editing stations (not onboarding), restart geofencing and go home
+        const selectedStations = await getSelectedStations();
+        await startGeofencing(selectedStations);
+        setScreen('home');
+    };
 
-            const foregroundGranted = await requestForegroundPermissions();
-            if (foregroundGranted) {
-                const backgroundGranted = await requestBackgroundPermissions();
-                if (backgroundGranted) {
-                    const selectedStations = await getSelectedStations();
-                    await startGeofencing(selectedStations);
-                }
+    /**
+     * Handle completion of onboarding settings configuration.
+     * Saves settings, requests permissions, and starts geofencing.
+     */
+    const handleOnboardingSettingsSave = async () => {
+        // Save the settings
+        await saveSettings();
+        setSavedRadiusMeters(settings.geofenceRadiusMeters);
+
+        // Complete onboarding
+        await setOnboardingComplete();
+        setIsOnboarding(false);
+
+        // Request permissions
+        const notificationGranted = await requestNotificationPermissions();
+        if (!notificationGranted) {
+            console.warn('Notification permission denied');
+        }
+
+        const foregroundGranted = await requestForegroundPermissions();
+        if (foregroundGranted) {
+            const backgroundGranted = await requestBackgroundPermissions();
+            if (backgroundGranted) {
+                const selectedStations = await getSelectedStations();
+                await startGeofencing(selectedStations);
             }
         }
 
         setScreen('home');
+    };
+
+    /**
+     * Navigate to settings screen from home.
+     */
+    const handleOpenSettings = () => {
+        setScreen('settings');
+    };
+
+    /**
+     * Navigate back to home from settings.
+     */
+    const handleCloseSettings = () => {
+        setScreen('home');
+    };
+
+    /**
+     * Handle saving settings from the settings screen.
+     * Restarts geofencing if radius changed.
+     */
+    const handleSettingsSave = async () => {
+        await saveSettings();
+
+        // If radius changed, restart geofencing with new radius
+        if (
+            savedRadiusMeters !== null &&
+            settings.geofenceRadiusMeters !== savedRadiusMeters
+        ) {
+            const selectedStations = await getSelectedStations();
+            await startGeofencing(selectedStations);
+            console.log(
+                `Restarted geofencing with new radius: ${settings.geofenceRadiusMeters}m`
+            );
+        }
+        setSavedRadiusMeters(settings.geofenceRadiusMeters);
     };
 
     /**
@@ -224,14 +300,14 @@ export default function App() {
     };
 
     /**
-     * Navigate back from debug screen to home.
+     * Navigate back from debug screen to settings.
      */
     const handleCloseDebug = () => {
-        setScreen('home');
+        setScreen('settings');
     };
 
     // Render loading state
-    if (screen === 'loading') {
+    if (screen === 'loading' || settingsLoading) {
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" />
@@ -252,6 +328,38 @@ export default function App() {
         );
     }
 
+    // Render onboarding settings screen
+    if (screen === 'onboarding-settings') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="light-content" />
+                <SettingsConfigScreen
+                    settings={settings}
+                    onUpdateSetting={updateSetting}
+                    onSave={handleOnboardingSettingsSave}
+                    isOnboarding={true}
+                />
+            </View>
+        );
+    }
+
+    // Render settings screen
+    if (screen === 'settings') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="light-content" />
+                <SettingsScreen
+                    settings={settings}
+                    onUpdateSetting={updateSetting}
+                    onSave={handleSettingsSave}
+                    onBack={handleCloseSettings}
+                    onEditStations={handleEditStations}
+                    onOpenDebug={handleOpenDebug}
+                />
+            </View>
+        );
+    }
+
     // Render debug screen
     if (screen === 'debug') {
         return (
@@ -266,10 +374,7 @@ export default function App() {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
-            <HomeScreen
-                onEditStations={handleEditStations}
-                onOpenDebug={handleOpenDebug}
-            />
+            <HomeScreen onOpenSettings={handleOpenSettings} />
         </View>
     );
 }

@@ -19,23 +19,21 @@ import {
     stopGeofencing,
     checkPermissions,
 } from '../services/geofencing';
-import { sendTestNotification, sendTicketReminder } from '../services/notifications';
 import {
     getSelectedStations,
     getRemainingCooldown,
-    isInCooldown,
-    setLastNotificationTime,
+    getUserSettings,
 } from '../services/storage';
 import { MAJOR_JUNCTIONS } from '../data/stations';
+import { formatDistance, formatDuration } from '../utils/units';
 
 /**
  * Home screen component.
  *
  * Args:
- *     onEditStations: Callback to navigate to station selection screen.
- *     onOpenDebug: Callback to navigate to debug screen.
+ *     onOpenSettings: Callback to navigate to settings screen.
  */
-export default function HomeScreen({ onEditStations, onOpenDebug }) {
+export default function HomeScreen({ onOpenSettings }) {
     const [isActive, setIsActive] = useState(false);
     const [permissions, setPermissions] = useState({
         foreground: false,
@@ -44,6 +42,7 @@ export default function HomeScreen({ onEditStations, onOpenDebug }) {
     const [stationCount, setStationCount] = useState(0);
     const [cooldownRemaining, setCooldownRemaining] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
+    const [userSettings, setUserSettings] = useState(null);
 
     const loadStatus = useCallback(async () => {
         const active = await isGeofencingActive();
@@ -58,6 +57,9 @@ export default function HomeScreen({ onEditStations, onOpenDebug }) {
 
         const remaining = await getRemainingCooldown();
         setCooldownRemaining(remaining);
+
+        const settings = await getUserSettings();
+        setUserSettings(settings);
     }, []);
 
     useEffect(() => {
@@ -104,36 +106,6 @@ export default function HomeScreen({ onEditStations, onOpenDebug }) {
         }
     };
 
-    const handleTestNotification = async () => {
-        try {
-            await sendTestNotification();
-            Alert.alert('Success', 'Test notification sent!');
-        } catch (error) {
-            Alert.alert('Error', 'Failed to send test notification.');
-        }
-    };
-
-    // DEBUG: Simulate geofence entry to test full notification flow
-    const handleSimulateStationEntry = async () => {
-        try {
-            const inCooldown = await isInCooldown();
-            if (inCooldown) {
-                Alert.alert(
-                    'In Cooldown',
-                    'Notification skipped due to cooldown. Wait for cooldown to expire or pull to refresh.'
-                );
-                return;
-            }
-
-            await sendTicketReminder('Babylon');
-            await setLastNotificationTime(Date.now());
-            await loadStatus(); // Refresh to show new cooldown
-            Alert.alert('Success', 'Simulated station entry - notification sent!');
-        } catch (error) {
-            Alert.alert('Error', `Failed to simulate: ${error.message}`);
-        }
-    };
-
     const formatCooldown = (ms) => {
         if (ms <= 0) return null;
         const minutes = Math.ceil(ms / 60000);
@@ -146,6 +118,7 @@ export default function HomeScreen({ onEditStations, onOpenDebug }) {
     };
 
     const cooldownText = formatCooldown(cooldownRemaining);
+    const useMetric = userSettings?.useMetric ?? false;
 
     return (
         <ScrollView
@@ -156,7 +129,15 @@ export default function HomeScreen({ onEditStations, onOpenDebug }) {
             }
         >
             <View style={styles.header}>
-                <Text style={styles.title}>LIRR Ticket Reminder</Text>
+                <View style={styles.headerRow}>
+                    <Text style={styles.title}>LIRR Ticket Reminder</Text>
+                    <TouchableOpacity
+                        style={styles.settingsButton}
+                        onPress={onOpenSettings}
+                    >
+                        <Text style={styles.settingsIcon}>{'\u2699'}</Text>
+                    </TouchableOpacity>
+                </View>
                 <Text style={styles.subtitle}>
                     Never forget to activate your ticket
                 </Text>
@@ -241,57 +222,26 @@ export default function HomeScreen({ onEditStations, onOpenDebug }) {
                         {isActive ? 'Stop Monitoring' : 'Start Monitoring'}
                     </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.button, styles.buttonSecondary]}
-                    onPress={onEditStations}
-                >
-                    <Text style={styles.buttonTextSecondary}>
-                        Edit Stations
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.button, styles.buttonOutline]}
-                    onPress={handleTestNotification}
-                >
-                    <Text style={styles.buttonTextOutline}>
-                        Send Test Notification
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.button, styles.buttonDebug]}
-                    onPress={handleSimulateStationEntry}
-                >
-                    <Text style={styles.buttonTextDebug}>
-                        DEBUG: Simulate Station Entry
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.button, styles.buttonDebugInfo]}
-                    onPress={onOpenDebug}
-                >
-                    <Text style={styles.buttonTextDebugInfo}>
-                        Open Debug Screen
-                    </Text>
-                </TouchableOpacity>
             </View>
 
-            <View style={styles.infoCard}>
-                <Text style={styles.infoTitle}>How It Works</Text>
-                <Text style={styles.infoText}>
-                    When you approach a monitored LIRR station, you'll receive a
-                    reminder to activate your ticket. The app uses geofencing to
-                    detect when you're within 300 meters of a station.
-                </Text>
-                <Text style={styles.infoText}>
-                    A 60-second dwell time prevents false alerts when passing
-                    by. After receiving a notification, there's a 90-minute
-                    cooldown to avoid repeated alerts.
-                </Text>
-            </View>
+            {userSettings && (
+                <View style={styles.infoCard}>
+                    <Text style={styles.infoTitle}>Current Settings</Text>
+                    <Text style={styles.infoText}>
+                        Detection radius:{' '}
+                        {formatDistance(
+                            userSettings.geofenceRadiusMeters,
+                            useMetric
+                        )}
+                    </Text>
+                    <Text style={styles.infoText}>
+                        Dwell time: {formatDuration(userSettings.dwellTimeMs)}
+                    </Text>
+                    <Text style={styles.infoText}>
+                        Cooldown: {formatDuration(userSettings.cooldownMs)}
+                    </Text>
+                </View>
+            )}
 
             <View style={styles.footer}>
                 <Text style={styles.footerText}>
@@ -318,16 +268,28 @@ const styles = StyleSheet.create({
         paddingBottom: 30,
         paddingHorizontal: 20,
     },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
     title: {
-        fontSize: 32,
+        fontSize: 28,
         fontWeight: 'bold',
         color: '#FFFFFF',
-        marginBottom: 8,
+    },
+    settingsButton: {
+        padding: 4,
+    },
+    settingsIcon: {
+        fontSize: 28,
+        color: '#FFFFFF',
     },
     subtitle: {
-        fontSize: 18,
+        fontSize: 16,
         color: '#FFFFFF',
         opacity: 0.9,
+        marginTop: 4,
     },
     statusCard: {
         backgroundColor: '#FFFFFF',
@@ -443,43 +405,9 @@ const styles = StyleSheet.create({
     buttonStop: {
         backgroundColor: '#FF6B6B',
     },
-    buttonSecondary: {
-        backgroundColor: '#0066CC',
-    },
-    buttonOutline: {
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderColor: '#0066CC',
-    },
     buttonText: {
         color: '#FFFFFF',
         fontSize: 18,
-        fontWeight: '600',
-    },
-    buttonTextSecondary: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    buttonTextOutline: {
-        color: '#0066CC',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    buttonDebug: {
-        backgroundColor: '#FF9500',
-    },
-    buttonTextDebug: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    buttonDebugInfo: {
-        backgroundColor: '#8E44AD',
-    },
-    buttonTextDebugInfo: {
-        color: '#FFFFFF',
-        fontSize: 16,
         fontWeight: '600',
     },
     infoCard: {
@@ -499,7 +427,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#666666',
         lineHeight: 20,
-        marginBottom: 8,
+        marginBottom: 4,
     },
     footer: {
         paddingHorizontal: 20,

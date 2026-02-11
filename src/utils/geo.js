@@ -111,13 +111,23 @@ export function findNearbyGeofences(lat, lon, regions) {
  *
  * Args:
  *     meters: Distance in meters.
+ *     useMetric: If true, display in meters/km. If false, display in feet/miles.
+ *               Defaults to true for backwards compatibility.
  *
  * Returns:
- *     Formatted string (e.g., "125m" or "1.2 km").
+ *     Formatted string (e.g., "125m", "1.2 km", "~410 ft", "1.2 mi").
  */
-export function formatDistance(meters) {
-    if (meters < 1000) {
-        return `${Math.round(meters)}m`;
+export function formatDistance(meters, useMetric = true) {
+    if (useMetric) {
+        if (meters < 1000) {
+            return `${Math.round(meters)}m`;
+        }
+        return `${(meters / 1000).toFixed(1)} km`;
     }
-    return `${(meters / 1000).toFixed(1)} km`;
+
+    const feet = meters / 0.3048;
+    if (feet < 5280) {
+        return `~${Math.round(feet)} ft`;
+    }
+    return `${(feet / 5280).toFixed(1)} mi`;
 }

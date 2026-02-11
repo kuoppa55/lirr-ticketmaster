@@ -6,8 +6,9 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { Alert, Platform } from 'react-native';
-import { GEOFENCING_TASK_NAME, GEOFENCE_RADIUS } from '../constants';
+import { GEOFENCING_TASK_NAME } from '../constants';
 import { getStationsForGeofencing } from '../data/stations';
+import { getUserSettings } from './storage';
 
 /**
  * Request foreground location permissions.
@@ -95,10 +96,13 @@ export async function startGeofencing(selectedStationIds) {
         // Stop existing geofencing first
         await stopGeofencing();
 
+        // Read radius from user settings
+        const settings = await getUserSettings();
+
         // Get stations formatted for geofencing
         const regions = getStationsForGeofencing(
             selectedStationIds,
-            GEOFENCE_RADIUS
+            settings.geofenceRadiusMeters
         );
 
         if (regions.length === 0) {

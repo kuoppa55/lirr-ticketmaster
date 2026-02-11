@@ -4,7 +4,48 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS, GLOBAL_COOLDOWN_MS, DWELL_TIME_MS } from '../constants';
+import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../constants';
+
+/**
+ * Get user settings, merging with defaults for any missing keys.
+ *
+ * Returns:
+ *     Settings object with all keys guaranteed.
+ */
+export async function getUserSettings() {
+    try {
+        const data = await AsyncStorage.getItem(STORAGE_KEYS.USER_SETTINGS);
+        if (data) {
+            return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
+        }
+        return { ...DEFAULT_SETTINGS };
+    } catch (error) {
+        console.error('Error loading user settings:', error);
+        return { ...DEFAULT_SETTINGS };
+    }
+}
+
+/**
+ * Save user settings to storage.
+ *
+ * Args:
+ *     settings: Settings object to persist.
+ *
+ * Returns:
+ *     True if save successful, false otherwise.
+ */
+export async function saveUserSettings(settings) {
+    try {
+        await AsyncStorage.setItem(
+            STORAGE_KEYS.USER_SETTINGS,
+            JSON.stringify(settings)
+        );
+        return true;
+    } catch (error) {
+        console.error('Error saving user settings:', error);
+        return false;
+    }
+}
 
 /**
  * Save selected station IDs to storage.
@@ -126,7 +167,7 @@ export async function setLastNotificationTime(timestamp) {
 
 /**
  * Check if the global notification cooldown is active.
- * Returns true if less than 90 minutes have passed since last notification.
+ * Reads the cooldown duration from user settings.
  *
  * Returns:
  *     True if in cooldown period, false otherwise.
@@ -138,8 +179,9 @@ export async function isInCooldown() {
             return false;
         }
 
+        const settings = await getUserSettings();
         const elapsed = Date.now() - lastTime;
-        return elapsed < GLOBAL_COOLDOWN_MS;
+        return elapsed < settings.cooldownMs;
     } catch (error) {
         console.error('Error checking cooldown:', error);
         return false;
@@ -148,6 +190,7 @@ export async function isInCooldown() {
 
 /**
  * Get the remaining cooldown time in milliseconds.
+ * Reads the cooldown duration from user settings.
  *
  * Returns:
  *     Remaining time in milliseconds, or 0 if not in cooldown.
@@ -159,8 +202,9 @@ export async function getRemainingCooldown() {
             return 0;
         }
 
+        const settings = await getUserSettings();
         const elapsed = Date.now() - lastTime;
-        const remaining = GLOBAL_COOLDOWN_MS - elapsed;
+        const remaining = settings.cooldownMs - elapsed;
         return remaining > 0 ? remaining : 0;
     } catch (error) {
         console.error('Error getting remaining cooldown:', error);
@@ -182,12 +226,13 @@ export async function getRemainingCooldown() {
 export async function addPendingDwellTimer(stationId, stationName) {
     try {
         const timers = await getPendingDwellTimers();
+        const settings = await getUserSettings();
         const now = Date.now();
         const timer = {
             stationId,
             stationName,
             startedAt: now,
-            expiresAt: now + DWELL_TIME_MS,
+            expiresAt: now + settings.dwellTimeMs,
         };
         timers[stationId] = timer;
         await AsyncStorage.setItem(
@@ -296,6 +341,7 @@ export async function clearAllData() {
             STORAGE_KEYS.ONBOARDING_COMPLETE,
             STORAGE_KEYS.LAST_NOTIFICATION_TIME,
             STORAGE_KEYS.PENDING_DWELL_TIMERS,
+            STORAGE_KEYS.USER_SETTINGS,
         ]);
         return true;
     } catch (error) {

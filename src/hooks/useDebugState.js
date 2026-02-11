@@ -11,14 +11,11 @@ import {
     getPendingDwellTimers,
     getRemainingCooldown,
     getLastNotificationTime,
+    getUserSettings,
 } from '../services/storage';
 import { findNearbyGeofences } from '../utils/geo';
 import { findStationById, LIRR_STATIONS } from '../data/stations';
-import {
-    GEOFENCE_RADIUS,
-    DWELL_TIME_MS,
-    GLOBAL_COOLDOWN_MS,
-} from '../constants';
+import { DEFAULT_SETTINGS } from '../constants';
 
 /**
  * Hook to manage debug state with real-time location tracking.
@@ -54,11 +51,11 @@ export function useDebugState(autoRefreshInterval = 2000) {
     // Dwell timer state
     const [pendingDwellTimers, setPendingDwellTimers] = useState({});
 
-    // Configuration values
-    const [config] = useState({
-        geofenceRadius: GEOFENCE_RADIUS,
-        dwellTimeMs: DWELL_TIME_MS,
-        cooldownMs: GLOBAL_COOLDOWN_MS,
+    // Configuration values (loaded from user settings)
+    const [config, setConfig] = useState({
+        geofenceRadius: DEFAULT_SETTINGS.geofenceRadiusMeters,
+        dwellTimeMs: DEFAULT_SETTINGS.dwellTimeMs,
+        cooldownMs: DEFAULT_SETTINGS.cooldownMs,
     });
 
     // Loading state
@@ -107,6 +104,14 @@ export function useDebugState(autoRefreshInterval = 2000) {
             // Get pending dwell timers
             const timers = await getPendingDwellTimers();
             setPendingDwellTimers(timers);
+
+            // Load user settings for config display
+            const settings = await getUserSettings();
+            setConfig({
+                geofenceRadius: settings.geofenceRadiusMeters,
+                dwellTimeMs: settings.dwellTimeMs,
+                cooldownMs: settings.cooldownMs,
+            });
         } catch (error) {
             console.error('Error refreshing debug data:', error);
         }
