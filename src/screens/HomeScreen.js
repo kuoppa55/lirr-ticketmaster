@@ -1,18 +1,23 @@
 /**
- * Home screen displaying monitoring status and controls.
+ * Home screen with central monitoring toggle button and compass radar.
+ *
+ * Minimal layout: header with gear icon, a large MonitoringButton in the
+ * center, status text, compass radar showing nearby stations, cooldown bar,
+ * and permission status dots at the bottom.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
     TouchableOpacity,
     StyleSheet,
-    Platform,
+    SafeAreaView,
     Alert,
     ScrollView,
     RefreshControl,
 } from 'react-native';
+import * as Location from 'expo-location';
 import {
     isGeofencingActive,
     startGeofencing,
@@ -25,7 +30,11 @@ import {
     getUserSettings,
 } from '../services/storage';
 import { MAJOR_JUNCTIONS } from '../data/stations';
-import { formatDistance, formatDuration } from '../utils/units';
+import MonitoringButton from '../components/MonitoringButton';
+import StatusIndicators from '../components/StatusIndicators';
+import CompassRadar from '../components/CompassRadar';
+import { useCompass } from '../hooks/useCompass';
+import { useNearestStations } from '../hooks/useNearestStations';
 
 /**
  * Home screen component.
@@ -42,7 +51,12 @@ export default function HomeScreen({ onOpenSettings }) {
     const [stationCount, setStationCount] = useState(0);
     const [cooldownRemaining, setCooldownRemaining] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
-    const [userSettings, setUserSettings] = useState(null);
+    const [location, setLocation] = useState(null);
+    const [useMetric, setUseMetric] = useState(false);
+    const locationSubRef = useRef(null);
+
+    const { heading, available: compassAvailable } = useCompass(isActive);
+    const nearestStations = useNearestStations(location, 5);
 
     const loadStatus = useCallback(async () => {
         const active = await isGeofencingActive();
@@ -59,19 +73,67 @@ export default function HomeScreen({ onOpenSettings }) {
         setCooldownRemaining(remaining);
 
         const settings = await getUserSettings();
-        setUserSettings(settings);
+        setUseMetric(settings.useMetric ?? false);
     }, []);
 
     useEffect(() => {
         loadStatus();
 
-        // Update cooldown timer every minute
         const interval = setInterval(() => {
             getRemainingCooldown().then(setCooldownRemaining);
         }, 60000);
 
         return () => clearInterval(interval);
     }, [loadStatus]);
+
+    // Watch user position when monitoring is active
+    useEffect(() => {
+        if (!isActive) {
+            if (locationSubRef.current) {
+                locationSubRef.current.remove();
+                locationSubRef.current = null;
+            }
+            setLocation(null);
+            return;
+        }
+
+        let mounted = true;
+
+        const startLocationWatch = async () => {
+            try {
+                const sub = await Location.watchPositionAsync(
+                    {
+                        accuracy: Location.Accuracy.Balanced,
+                        timeInterval: 5000,
+                        distanceInterval: 10,
+                    },
+                    (loc) => {
+                        if (mounted) {
+                            setLocation(loc.coords);
+                        }
+                    },
+                );
+
+                if (mounted) {
+                    locationSubRef.current = sub;
+                } else {
+                    sub.remove();
+                }
+            } catch (error) {
+                console.warn('Location watch failed:', error.message);
+            }
+        };
+
+        startLocationWatch();
+
+        return () => {
+            mounted = false;
+            if (locationSubRef.current) {
+                locationSubRef.current.remove();
+                locationSubRef.current = null;
+            }
+        };
+    }, [isActive]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -88,7 +150,7 @@ export default function HomeScreen({ onOpenSettings }) {
                 Alert.alert(
                     'Permission Required',
                     'Background location permission is needed to monitor stations when the app is closed.',
-                    [{ text: 'OK' }]
+                    [{ text: 'OK' }],
                 );
                 return;
             }
@@ -100,7 +162,7 @@ export default function HomeScreen({ onOpenSettings }) {
             if (!success) {
                 Alert.alert(
                     'Error',
-                    'Failed to start monitoring. Please check your permissions.'
+                    'Failed to start monitoring. Please check your permissions.',
                 );
             }
         }
@@ -118,19 +180,24 @@ export default function HomeScreen({ onOpenSettings }) {
     };
 
     const cooldownText = formatCooldown(cooldownRemaining);
-    const useMetric = userSettings?.useMetric ?? false;
+    const showCompass = isActive && compassAvailable && location;
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.content}
-            refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-        >
-            <View style={styles.header}>
-                <View style={styles.headerRow}>
-                    <Text style={styles.title}>LIRR Ticket Reminder</Text>
+        <SafeAreaView style={styles.safeArea}>
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={styles.content}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#999999"
+                    />
+                }
+            >
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={styles.title}>LIRR Reminder</Text>
                     <TouchableOpacity
                         style={styles.settingsButton}
                         onPress={onOpenSettings}
@@ -138,304 +205,142 @@ export default function HomeScreen({ onOpenSettings }) {
                         <Text style={styles.settingsIcon}>{'\u2699'}</Text>
                     </TouchableOpacity>
                 </View>
-                <Text style={styles.subtitle}>
-                    Never forget to activate your ticket
-                </Text>
-            </View>
 
-            <View style={styles.statusCard}>
-                <View
-                    style={[
-                        styles.statusIndicator,
-                        isActive
-                            ? styles.statusActive
-                            : styles.statusInactive,
-                    ]}
-                />
-                <Text style={styles.statusText}>
-                    {isActive ? 'Monitoring Active' : 'Monitoring Paused'}
-                </Text>
-                <Text style={styles.stationCountText}>
-                    {stationCount} stations being monitored
-                </Text>
-            </View>
-
-            {cooldownText && (
-                <View style={styles.cooldownCard}>
-                    <Text style={styles.cooldownLabel}>
-                        Notification Cooldown
+                {/* Status label */}
+                <View style={styles.statusArea}>
+                    <Text style={styles.statusText}>
+                        {isActive ? 'Monitoring Active' : 'Monitoring Paused'}
                     </Text>
-                    <Text style={styles.cooldownTime}>{cooldownText}</Text>
-                    <Text style={styles.cooldownNote}>
-                        Next notification available after cooldown
+                    <Text style={styles.stationSubtitle}>
+                        {stationCount} station{stationCount !== 1 ? 's' : ''}
                     </Text>
                 </View>
-            )}
 
-            <View style={styles.permissionsCard}>
-                <Text style={styles.cardTitle}>Permissions</Text>
-                <View style={styles.permissionRow}>
-                    <Text style={styles.permissionLabel}>
-                        Foreground Location
-                    </Text>
-                    <View
-                        style={[
-                            styles.permissionStatus,
-                            permissions.foreground
-                                ? styles.permissionGranted
-                                : styles.permissionDenied,
-                        ]}
-                    >
-                        <Text style={styles.permissionStatusText}>
-                            {permissions.foreground ? 'Granted' : 'Denied'}
+                {/* Compass radar */}
+                {showCompass ? (
+                    <View style={styles.compassWrapper}>
+                        <CompassRadar
+                            heading={heading}
+                            stations={nearestStations}
+                            size={250}
+                            useMetric={useMetric}
+                        />
+                    </View>
+                ) : (
+                    <View style={styles.compassFallback}>
+                        <Text style={styles.compassFallbackText}>
+                            {isActive
+                                ? 'Waiting for compass...'
+                                : 'Start monitoring to see nearby stations'}
                         </Text>
                     </View>
+                )}
+
+                {/* Monitoring toggle button */}
+                <View style={styles.buttonArea}>
+                    <MonitoringButton
+                        isActive={isActive}
+                        onToggle={handleToggleMonitoring}
+                    />
                 </View>
-                <View style={styles.permissionRow}>
-                    <Text style={styles.permissionLabel}>
-                        Background Location
-                    </Text>
-                    <View
-                        style={[
-                            styles.permissionStatus,
-                            permissions.background
-                                ? styles.permissionGranted
-                                : styles.permissionDenied,
-                        ]}
-                    >
-                        <Text style={styles.permissionStatusText}>
-                            {permissions.background ? 'Granted' : 'Denied'}
+
+                {/* Cooldown bar */}
+                {cooldownText && (
+                    <View style={styles.cooldownBar}>
+                        <Text style={styles.cooldownText}>
+                            Cooldown: {cooldownText}
                         </Text>
                     </View>
-                </View>
-            </View>
+                )}
+            </ScrollView>
 
-            <View style={styles.actions}>
-                <TouchableOpacity
-                    style={[
-                        styles.button,
-                        isActive ? styles.buttonStop : styles.buttonStart,
-                    ]}
-                    onPress={handleToggleMonitoring}
-                >
-                    <Text style={styles.buttonText}>
-                        {isActive ? 'Stop Monitoring' : 'Start Monitoring'}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            {userSettings && (
-                <View style={styles.infoCard}>
-                    <Text style={styles.infoTitle}>Current Settings</Text>
-                    <Text style={styles.infoText}>
-                        Detection radius:{' '}
-                        {formatDistance(
-                            userSettings.geofenceRadiusMeters,
-                            useMetric
-                        )}
-                    </Text>
-                    <Text style={styles.infoText}>
-                        Dwell time: {formatDuration(userSettings.dwellTimeMs)}
-                    </Text>
-                    <Text style={styles.infoText}>
-                        Cooldown: {formatDuration(userSettings.cooldownMs)}
-                    </Text>
-                </View>
-            )}
-
-            <View style={styles.footer}>
-                <Text style={styles.footerText}>
-                    {Platform.OS === 'ios'
-                        ? 'iOS limits monitoring to 20 stations. Major junctions are always included.'
-                        : 'All selected stations are monitored in the background.'}
-                </Text>
-            </View>
-        </ScrollView>
+            {/* Status indicators pinned to bottom */}
+            <StatusIndicators
+                permissions={permissions}
+                isGeofencing={isActive}
+            />
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#1A1A2E',
+    },
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
     },
     content: {
-        paddingBottom: 40,
+        flexGrow: 1,
+        paddingBottom: 16,
     },
     header: {
-        backgroundColor: '#0066CC',
-        paddingTop: 60,
-        paddingBottom: 30,
-        paddingHorizontal: 20,
-    },
-    headerRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 8,
     },
     title: {
-        fontSize: 28,
-        fontWeight: 'bold',
+        fontSize: 20,
+        fontWeight: '700',
         color: '#FFFFFF',
     },
     settingsButton: {
-        padding: 4,
+        padding: 8,
     },
     settingsIcon: {
-        fontSize: 28,
-        color: '#FFFFFF',
+        fontSize: 24,
+        color: '#AAAAAA',
     },
-    subtitle: {
-        fontSize: 16,
-        color: '#FFFFFF',
-        opacity: 0.9,
-        marginTop: 4,
-    },
-    statusCard: {
-        backgroundColor: '#FFFFFF',
-        marginHorizontal: 20,
-        marginTop: -20,
-        borderRadius: 16,
-        padding: 24,
+    statusArea: {
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    statusIndicator: {
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        marginBottom: 12,
-    },
-    statusActive: {
-        backgroundColor: '#00CC66',
-    },
-    statusInactive: {
-        backgroundColor: '#FF6B6B',
+        paddingTop: 24,
+        paddingBottom: 8,
     },
     statusText: {
         fontSize: 20,
-        fontWeight: '700',
-        color: '#333333',
-        marginBottom: 4,
+        fontWeight: '600',
+        color: '#FFFFFF',
     },
-    stationCountText: {
+    stationSubtitle: {
         fontSize: 14,
-        color: '#666666',
+        color: '#888888',
+        marginTop: 6,
     },
-    cooldownCard: {
-        backgroundColor: '#FFF9E6',
-        marginHorizontal: 20,
-        marginTop: 16,
-        borderRadius: 12,
-        padding: 16,
+    compassWrapper: {
+        alignItems: 'center',
+        paddingVertical: 16,
+    },
+    compassFallback: {
+        alignItems: 'center',
+        paddingVertical: 32,
+    },
+    buttonArea: {
+        alignItems: 'center',
+        paddingVertical: 24,
+    },
+    compassFallbackText: {
+        fontSize: 13,
+        color: '#666666',
+        fontStyle: 'italic',
+    },
+    cooldownBar: {
+        backgroundColor: 'rgba(255, 204, 0, 0.12)',
+        borderRadius: 8,
+        marginHorizontal: 32,
+        marginBottom: 16,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#FFE066',
+        borderColor: 'rgba(255, 204, 0, 0.25)',
     },
-    cooldownLabel: {
+    cooldownText: {
         fontSize: 14,
-        color: '#996600',
         fontWeight: '600',
-    },
-    cooldownTime: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#CC8800',
-        marginVertical: 4,
-    },
-    cooldownNote: {
-        fontSize: 12,
-        color: '#996600',
-    },
-    permissionsCard: {
-        backgroundColor: '#FFFFFF',
-        marginHorizontal: 20,
-        marginTop: 16,
-        borderRadius: 12,
-        padding: 16,
-    },
-    cardTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#333333',
-        marginBottom: 12,
-    },
-    permissionRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 8,
-    },
-    permissionLabel: {
-        fontSize: 14,
-        color: '#333333',
-    },
-    permissionStatus: {
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    permissionGranted: {
-        backgroundColor: '#E6FFE6',
-    },
-    permissionDenied: {
-        backgroundColor: '#FFE6E6',
-    },
-    permissionStatusText: {
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    actions: {
-        paddingHorizontal: 20,
-        marginTop: 24,
-        gap: 12,
-    },
-    button: {
-        borderRadius: 12,
-        paddingVertical: 16,
-        alignItems: 'center',
-    },
-    buttonStart: {
-        backgroundColor: '#00CC66',
-    },
-    buttonStop: {
-        backgroundColor: '#FF6B6B',
-    },
-    buttonText: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '600',
-    },
-    infoCard: {
-        backgroundColor: '#FFFFFF',
-        marginHorizontal: 20,
-        marginTop: 24,
-        borderRadius: 12,
-        padding: 16,
-    },
-    infoTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#333333',
-        marginBottom: 12,
-    },
-    infoText: {
-        fontSize: 14,
-        color: '#666666',
-        lineHeight: 20,
-        marginBottom: 4,
-    },
-    footer: {
-        paddingHorizontal: 20,
-        paddingTop: 24,
-    },
-    footerText: {
-        fontSize: 12,
-        color: '#999999',
-        textAlign: 'center',
+        color: '#FFCC00',
     },
 });

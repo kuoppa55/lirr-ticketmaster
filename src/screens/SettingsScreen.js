@@ -39,6 +39,7 @@ import {
  *     onBack: Callback to navigate back to home.
  *     onEditStations: Callback to navigate to station edit screen.
  *     onOpenDebug: Callback to navigate to debug screen.
+ *     onOpenThemePreview: Callback to navigate to theme preview screen.
  */
 export default function SettingsScreen({
     settings,
@@ -47,6 +48,7 @@ export default function SettingsScreen({
     onBack,
     onEditStations,
     onOpenDebug,
+    onOpenThemePreview,
 }) {
     const [showDebug, setShowDebug] = useState(false);
     const { geofenceRadiusMeters, dwellTimeMs, cooldownMs, useMetric } =
@@ -223,6 +225,14 @@ export default function SettingsScreen({
                 <Text style={styles.actionButtonText}>Edit Stations</Text>
             </TouchableOpacity>
 
+            {/* Choose Theme */}
+            <TouchableOpacity
+                style={[styles.actionButton, styles.themeButton]}
+                onPress={onOpenThemePreview}
+            >
+                <Text style={styles.actionButtonText}>Choose Theme</Text>
+            </TouchableOpacity>
+
             {/* Debug Tools */}
             <TouchableOpacity
                 style={styles.debugToggle}
@@ -372,6 +382,9 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 18,
         fontWeight: '600',
+    },
+    themeButton: {
+        backgroundColor: '#8E44AD',
     },
     debugToggle: {
         marginHorizontal: 16,

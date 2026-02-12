@@ -24,6 +24,7 @@ export const STORAGE_KEYS = {
     LAST_NOTIFICATION_TIME: '@lirr_last_notification_time',
     PENDING_DWELL_TIMERS: '@lirr_pending_dwell_timers',
     USER_SETTINGS: '@lirr_user_settings',
+    SELECTED_THEME: '@lirr_selected_theme',
 };
 
 // iOS maximum geofence regions

@@ -42,6 +42,7 @@ import StationSelectScreen from './src/screens/StationSelectScreen';
 import DebugScreen from './src/screens/DebugScreen';
 import SettingsConfigScreen from './src/screens/SettingsConfigScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ThemePreviewScreen from './src/screens/ThemePreviewScreen';
 
 // In-memory tracking for dwell timers (persists while app process runs)
 const pendingDwellTimers = {};
@@ -306,6 +307,20 @@ export default function App() {
         setScreen('settings');
     };
 
+    /**
+     * Navigate to theme preview screen from settings.
+     */
+    const handleOpenThemePreview = () => {
+        setScreen('theme-preview');
+    };
+
+    /**
+     * Navigate back from theme preview to settings.
+     */
+    const handleCloseThemePreview = () => {
+        setScreen('settings');
+    };
+
     // Render loading state
     if (screen === 'loading' || settingsLoading) {
         return (
@@ -355,7 +370,18 @@ export default function App() {
                     onBack={handleCloseSettings}
                     onEditStations={handleEditStations}
                     onOpenDebug={handleOpenDebug}
+                    onOpenThemePreview={handleOpenThemePreview}
                 />
+            </View>
+        );
+    }
+
+    // Render theme preview screen
+    if (screen === 'theme-preview') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="light-content" />
+                <ThemePreviewScreen onBack={handleCloseThemePreview} />
             </View>
         );
     }
@@ -382,6 +408,6 @@ export default function App() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0066CC',
+        backgroundColor: '#1A1A2E',
     },
 });

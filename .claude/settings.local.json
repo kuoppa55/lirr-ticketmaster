@@ -8,7 +8,9 @@
       "WebFetch(domain:data.ny.gov)",
       "WebFetch(domain:en.wikipedia.org)",
       "Bash(powershell:*)",
-      "Bash(node -e \"const fs = require\\(''fs''\\); const lines = fs.readFileSync\\(''C:\\\\\\\\Users\\\\\\\\tthku\\\\\\\\.claude\\\\\\\\projects\\\\\\\\C--Users-tthku-Documents-lirr-ticketmaster\\\\\\\\7332f254-d2ee-4315-8df8-c3b198f7a524.jsonl'', ''utf8''\\).split\\(''\\\\n''\\); for \\(const line of lines\\) { try { const obj = JSON.parse\\(line\\); if \\(obj.type === ''assistant'' && obj.message && obj.message.content\\) { for \\(const c of obj.message.content\\) { if \\(c.type === ''text'' && c.text && c.text.length > 500\\) { console.log\\(''UUID:'', obj.uuid, ''LEN:'', c.text.length\\); console.log\\(c.text.substring\\(0, 300\\)\\); console.log\\(''---''\\); } } } } catch\\(e\\) {} }\")"
+      "Bash(node -e \"const fs = require\\(''fs''\\); const lines = fs.readFileSync\\(''C:\\\\\\\\Users\\\\\\\\tthku\\\\\\\\.claude\\\\\\\\projects\\\\\\\\C--Users-tthku-Documents-lirr-ticketmaster\\\\\\\\7332f254-d2ee-4315-8df8-c3b198f7a524.jsonl'', ''utf8''\\).split\\(''\\\\n''\\); for \\(const line of lines\\) { try { const obj = JSON.parse\\(line\\); if \\(obj.type === ''assistant'' && obj.message && obj.message.content\\) { for \\(const c of obj.message.content\\) { if \\(c.type === ''text'' && c.text && c.text.length > 500\\) { console.log\\(''UUID:'', obj.uuid, ''LEN:'', c.text.length\\); console.log\\(c.text.substring\\(0, 300\\)\\); console.log\\(''---''\\); } } } } catch\\(e\\) {} }\")",
+      "Bash(npx expo install:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }
