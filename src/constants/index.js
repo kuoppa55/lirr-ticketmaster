@@ -42,10 +42,11 @@ export const DEFAULT_SETTINGS = {
 };
 
 // Preset options for geofence radius
+// value = meters (used when metric), valueImperial = exact feet converted to meters
 export const RADIUS_PRESETS = [
-    { label: '~500 ft', labelMetric: '150 m', value: 150, isDefault: false },
-    { label: '~1000 ft', labelMetric: '300 m', value: 300, isDefault: true },
-    { label: '~1500 ft', labelMetric: '450 m', value: 450, isDefault: false },
+    { label: '500 ft', labelMetric: '150 m', value: 150, valueImperial: 152.4, isDefault: false },
+    { label: '1000 ft', labelMetric: '300 m', value: 300, valueImperial: 304.8, isDefault: true },
+    { label: '1500 ft', labelMetric: '450 m', value: 450, valueImperial: 457.2, isDefault: false },
 ];
 
 // Preset options for dwell time

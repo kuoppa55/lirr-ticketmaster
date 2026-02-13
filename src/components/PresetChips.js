@@ -12,7 +12,7 @@ import {
     TextInput,
     StyleSheet,
 } from 'react-native';
-import { COLORS } from '../theme/colors';
+import { COLORS, FONTS } from '../theme/colors';
 
 /**
  * PresetChips component.
@@ -40,13 +40,20 @@ export default function PresetChips({
     const [isCustom, setIsCustom] = useState(false);
     const [customText, setCustomText] = useState('');
 
+    const getPresetValue = (preset) => {
+        if (!useMetric && preset.valueImperial !== undefined) {
+            return preset.valueImperial;
+        }
+        return preset.value;
+    };
+
     const isPresetSelected = (preset) =>
-        !isCustom && selectedValue === preset.value;
+        !isCustom && selectedValue === getPresetValue(preset);
 
     const handlePresetPress = (preset) => {
         setIsCustom(false);
         setCustomText('');
-        onSelect(preset.value);
+        onSelect(getPresetValue(preset));
     };
 
     const handleCustomPress = () => {
@@ -150,19 +157,19 @@ const styles = StyleSheet.create({
     chip: {
         paddingHorizontal: 16,
         paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: COLORS.surfaceElevated,
-        borderWidth: 1.5,
-        borderColor: COLORS.dimmed,
+        borderRadius: 0,
+        backgroundColor: COLORS.background,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
     },
     chipSelected: {
         backgroundColor: COLORS.primary,
         borderColor: COLORS.primary,
     },
     chipText: {
-        fontSize: 14,
-        color: COLORS.secondary,
-        fontWeight: '500',
+        fontFamily: FONTS.pixel,
+        fontSize: 9,
+        color: COLORS.primary,
     },
     chipTextSelected: {
         color: COLORS.background,
@@ -174,19 +181,20 @@ const styles = StyleSheet.create({
     },
     customInput: {
         flex: 1,
-        borderWidth: 1.5,
+        borderWidth: 1,
         borderColor: COLORS.primary,
-        borderRadius: 8,
+        borderRadius: 0,
         paddingHorizontal: 12,
         paddingVertical: 8,
-        fontSize: 16,
+        fontFamily: FONTS.pixel,
+        fontSize: 10,
         color: COLORS.primary,
-        backgroundColor: COLORS.surface,
+        backgroundColor: COLORS.background,
     },
     customUnit: {
         marginLeft: 8,
-        fontSize: 14,
-        color: COLORS.secondary,
-        fontWeight: '500',
+        fontFamily: FONTS.pixel,
+        fontSize: 9,
+        color: COLORS.primary,
     },
 });

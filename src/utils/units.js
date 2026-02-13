@@ -65,7 +65,7 @@ export function formatDistance(meters, useMetric = false) {
 
     const feet = metersToFeet(meters);
     if (feet < FEET_PER_MILE) {
-        return `~${Math.round(feet)} ft`;
+        return `${Math.round(feet)} ft`;
     }
     return `${(feet / FEET_PER_MILE).toFixed(1)} mi`;
 }

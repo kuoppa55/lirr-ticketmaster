@@ -24,7 +24,7 @@ import { COLORS, LED_GLOW, FONTS } from '../theme/colors';
  *     onComplete: Callback function when selection is complete.
  *     isOnboarding: Whether this is the initial onboarding flow.
  */
-export default function StationSelectScreen({ onComplete, isOnboarding }) {
+export default function StationSelectScreen({ onComplete, isOnboarding, onBack }) {
     const {
         loading,
         toggleStation,
@@ -92,35 +92,25 @@ export default function StationSelectScreen({ onComplete, isOnboarding }) {
                 onPress={() => handleStationPress(station)}
                 activeOpacity={isMajor ? 1 : 0.7}
             >
-                <View style={styles.stationInfo}>
-                    <Text
-                        style={[
-                            styles.stationName,
-                            selected && styles.stationNameSelected,
-                        ]}
-                    >
-                        {station.name}
-                    </Text>
-                    {isMajor && (
-                        <Text style={styles.majorLabel}>Always monitored</Text>
-                    )}
-                </View>
-                <View
+                <Text
                     style={[
-                        styles.checkbox,
-                        selected && styles.checkboxSelected,
-                        isMajor && styles.checkboxMajor,
+                        styles.stationName,
+                        selected && styles.stationNameSelected,
+                        isMajor && styles.stationNameMajor,
                     ]}
                 >
-                    {selected && <Text style={styles.checkmark}>✓</Text>}
-                </View>
+                    {station.name}
+                </Text>
+                {isMajor && (
+                    <Text style={styles.majorLabel}>ALWAYS MONITORED</Text>
+                )}
             </TouchableOpacity>
         );
     };
 
     const renderSectionHeader = ({ section }) => (
         <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Text style={styles.sectionTitle}>{section.title.toUpperCase()}</Text>
         </View>
     );
 
@@ -139,10 +129,18 @@ export default function StationSelectScreen({ onComplete, isOnboarding }) {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
+                {onBack && (
+                    <TouchableOpacity
+                        onPress={onBack}
+                        style={styles.backButton}
+                    >
+                        <Text style={styles.backButtonText}>BACK</Text>
+                    </TouchableOpacity>
+                )}
                 <Text style={styles.title}>
                     {isOnboarding
-                        ? 'Select Your Stations'
-                        : 'Edit Monitored Stations'}
+                        ? 'SELECT YOUR STATIONS'
+                        : 'EDIT STATIONS'}
                 </Text>
                 <Text style={styles.subtitle}>
                     {isOnboarding
@@ -198,10 +196,26 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.background,
     },
     header: {
-        backgroundColor: COLORS.surface,
+        backgroundColor: COLORS.background,
         paddingTop: 60,
         paddingBottom: 20,
         paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.primary,
+    },
+    backButton: {
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        borderRadius: 0,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        alignSelf: 'flex-start',
+        marginBottom: 12,
+    },
+    backButtonText: {
+        fontFamily: FONTS.pixel,
+        fontSize: 10,
+        color: COLORS.primary,
     },
     title: {
         fontSize: 14,
@@ -216,110 +230,90 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     countContainer: {
-        backgroundColor: COLORS.countBg,
-        borderRadius: 8,
+        backgroundColor: COLORS.background,
+        borderRadius: 0,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
         paddingVertical: 8,
         paddingHorizontal: 12,
     },
     countText: {
-        fontSize: 14,
+        fontFamily: FONTS.pixel,
+        fontSize: 9,
         color: COLORS.primary,
-        fontWeight: '600',
     },
     listContent: {
         paddingBottom: 100,
     },
     sectionHeader: {
-        backgroundColor: COLORS.surfaceElevated,
-        paddingVertical: 10,
+        backgroundColor: COLORS.background,
+        paddingVertical: 16,
         paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.primary,
+        alignItems: 'center',
     },
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
+        fontFamily: FONTS.pixel,
+        fontSize: 12,
+        letterSpacing: 1,
         color: COLORS.primary,
+        textAlign: 'center',
     },
     stationItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: COLORS.surface,
+        backgroundColor: COLORS.background,
         paddingVertical: 14,
         paddingHorizontal: 20,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.dimmed,
+        borderBottomColor: COLORS.muted,
     },
     stationItemSelected: {
-        backgroundColor: COLORS.selectedBg,
+        backgroundColor: COLORS.primary,
     },
     stationItemMajor: {
-        backgroundColor: COLORS.majorBg,
-    },
-    stationInfo: {
-        flex: 1,
+        backgroundColor: COLORS.secondary,
     },
     stationName: {
-        fontSize: 16,
-        color: COLORS.secondary,
+        fontFamily: FONTS.pixel,
+        fontSize: 10,
+        color: COLORS.primary,
     },
     stationNameSelected: {
-        fontWeight: '600',
-        color: COLORS.primary,
+        color: COLORS.background,
+    },
+    stationNameMajor: {
+        color: COLORS.background,
     },
     majorLabel: {
-        fontSize: 12,
-        color: COLORS.primary,
-        marginTop: 2,
-        fontWeight: '500',
-    },
-    checkbox: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        borderWidth: 2,
-        borderColor: COLORS.muted,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    checkboxSelected: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
-    },
-    checkboxMajor: {
-        backgroundColor: COLORS.secondary,
-        borderColor: COLORS.secondary,
-    },
-    checkmark: {
+        fontFamily: FONTS.pixel,
+        fontSize: 7,
         color: COLORS.background,
-        fontSize: 14,
-        fontWeight: 'bold',
+        marginTop: 4,
     },
     footer: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: COLORS.surface,
+        backgroundColor: COLORS.background,
         paddingVertical: 16,
         paddingHorizontal: 20,
         paddingBottom: Platform.OS === 'ios' ? 34 : 16,
         borderTopWidth: 1,
-        borderTopColor: COLORS.dimmed,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 5,
+        borderTopColor: COLORS.primary,
     },
     saveButton: {
-        backgroundColor: COLORS.primary,
-        borderRadius: 12,
+        backgroundColor: COLORS.background,
+        borderRadius: 0,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
         paddingVertical: 16,
         alignItems: 'center',
     },
     saveButtonText: {
-        color: COLORS.background,
-        fontSize: 18,
-        fontWeight: '600',
+        color: COLORS.primary,
+        fontFamily: FONTS.pixel,
+        fontSize: 12,
+        letterSpacing: 1,
     },
 });

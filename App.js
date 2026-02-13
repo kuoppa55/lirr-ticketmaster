@@ -298,6 +298,13 @@ export default function App() {
     };
 
     /**
+     * Navigate back from station edit screen to settings.
+     */
+    const handleCloseStationEdit = () => {
+        setScreen('settings');
+    };
+
+    /**
      * Navigate to debug screen.
      */
     const handleOpenDebug = () => {
@@ -333,6 +340,7 @@ export default function App() {
                 <StationSelectScreen
                     onComplete={handleStationSelectionComplete}
                     isOnboarding={isOnboarding}
+                    onBack={isOnboarding ? null : handleCloseStationEdit}
                 />
             </View>
         );

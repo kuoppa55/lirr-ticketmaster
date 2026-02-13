@@ -55,7 +55,7 @@ export default function SettingsScreen({
 
     const handleSave = async () => {
         await onSave();
-        Alert.alert('Saved', 'Settings have been saved.');
+        onBack();
     };
 
     const handleTestNotification = async () => {
@@ -100,11 +100,10 @@ export default function SettingsScreen({
                     onPress={onBack}
                     style={styles.backButton}
                 >
-                    <Text style={styles.backButtonText}>
-                        {'\u2190'} Back
-                    </Text>
+                    <Text style={styles.backButtonText}>BACK</Text>
                 </TouchableOpacity>
-                <Text style={styles.title}>Settings</Text>
+                <Text style={styles.title}>SETTINGS</Text>
+                <View style={styles.headerSpacer} />
             </View>
 
             {/* Unit Toggle */}
@@ -278,17 +277,27 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     header: {
-        backgroundColor: COLORS.surface,
+        backgroundColor: COLORS.background,
         paddingTop: 60,
         paddingBottom: 20,
         paddingHorizontal: 20,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.primary,
     },
     backButton: {
-        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        borderRadius: 0,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
     },
     backButtonText: {
-        fontSize: 16,
-        color: COLORS.secondary,
+        fontFamily: FONTS.pixel,
+        fontSize: 10,
+        color: COLORS.primary,
     },
     title: {
         fontSize: 14,
@@ -296,17 +305,23 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         ...LED_GLOW,
     },
+    headerSpacer: {
+        width: 60,
+    },
     section: {
-        backgroundColor: COLORS.surfaceElevated,
+        backgroundColor: COLORS.background,
         marginHorizontal: 16,
         marginTop: 16,
-        borderRadius: 12,
+        borderRadius: 0,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
         padding: 16,
     },
     sectionTitle: {
-        fontSize: 10,
+        fontSize: 14,
         fontFamily: FONTS.pixel,
         color: COLORS.primary,
+        letterSpacing: 1,
         marginBottom: 6,
     },
     sectionDescription: {
@@ -316,91 +331,103 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     currentValue: {
-        fontSize: 13,
+        fontFamily: FONTS.pixel,
+        fontSize: 9,
         color: COLORS.primary,
-        fontWeight: '600',
         marginBottom: 4,
     },
     unitToggleRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
     },
     unitLabel: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontFamily: FONTS.pixel,
+        fontSize: 14,
         color: COLORS.primary,
     },
     unitSwitchRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        marginTop: 10,
     },
     unitOption: {
-        fontSize: 14,
+        fontFamily: FONTS.pixel,
+        fontSize: 9,
         color: COLORS.muted,
     },
     unitOptionActive: {
         color: COLORS.primary,
-        fontWeight: '600',
     },
     defaultsNote: {
-        fontSize: 12,
+        fontFamily: FONTS.pixel,
+        fontSize: 8,
         color: COLORS.muted,
         textAlign: 'center',
         marginTop: 16,
         marginHorizontal: 16,
     },
     saveButton: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: COLORS.background,
         marginHorizontal: 16,
         marginTop: 24,
-        borderRadius: 12,
+        borderRadius: 0,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
         paddingVertical: 16,
         alignItems: 'center',
     },
     saveButtonText: {
-        color: COLORS.background,
-        fontSize: 18,
-        fontWeight: '700',
+        color: COLORS.primary,
+        fontFamily: FONTS.pixel,
+        fontSize: 12,
+        letterSpacing: 1,
     },
     actionButton: {
-        backgroundColor: COLORS.secondary,
+        backgroundColor: COLORS.background,
         marginHorizontal: 16,
         marginTop: 12,
-        borderRadius: 12,
+        borderRadius: 0,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
         paddingVertical: 16,
         alignItems: 'center',
     },
     actionButtonText: {
-        color: COLORS.background,
-        fontSize: 18,
-        fontWeight: '600',
+        color: COLORS.primary,
+        fontFamily: FONTS.pixel,
+        fontSize: 12,
+        letterSpacing: 1,
     },
     debugToggle: {
         marginHorizontal: 16,
         marginTop: 24,
         paddingVertical: 12,
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.muted,
+        borderRadius: 0,
     },
     debugToggleText: {
-        fontSize: 14,
+        fontFamily: FONTS.pixel,
+        fontSize: 10,
         color: COLORS.muted,
-        fontWeight: '600',
     },
     debugSection: {
         marginHorizontal: 16,
         gap: 10,
     },
     debugButton: {
-        backgroundColor: COLORS.secondary,
-        borderRadius: 12,
+        backgroundColor: COLORS.background,
+        borderRadius: 0,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
         paddingVertical: 14,
         alignItems: 'center',
     },
     debugButtonText: {
-        color: COLORS.background,
-        fontSize: 16,
-        fontWeight: '600',
+        color: COLORS.primary,
+        fontFamily: FONTS.pixel,
+        fontSize: 10,
+        letterSpacing: 1,
     },
 });
