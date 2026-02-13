@@ -16,6 +16,7 @@ import {
     Alert,
     ScrollView,
     RefreshControl,
+    Dimensions,
 } from 'react-native';
 import * as Location from 'expo-location';
 import {
@@ -185,6 +186,9 @@ export default function HomeScreen({ onOpenSettings }) {
     const cooldownText = formatCooldown(cooldownRemaining);
     const showCompass = isActive && compassAvailable && location;
 
+    const screenWidth = Dimensions.get('window').width;
+    const compassSize = Math.min(screenWidth - 40, 340);
+
     const getMarqueeText = () => {
         if (!isActive) {
             return '  MONITORING PAUSED  ---  TAP BUTTON TO START  ---  LIRR TICKET REMINDER  ';
@@ -221,23 +225,22 @@ export default function HomeScreen({ onOpenSettings }) {
                         <LEDText text="REMINDER" style={styles.titleSmall} flicker={true} />
                     </View>
                     <TouchableOpacity
-                        style={styles.settingsButton}
+                        style={styles.settingsBox}
                         onPress={onOpenSettings}
                     >
-                        <Text style={styles.settingsIcon}>{'\u2699'}</Text>
+                        <LEDText text="SETTINGS" style={styles.settingsLabel} flicker={true} />
                     </TouchableOpacity>
                 </View>
 
-                {/* Status label */}
-                <View style={styles.statusArea}>
+                {/* Scrolling marquee */}
+                <View style={styles.marqueeWrapper}>
                     <LEDText
-                        text={isActive ? 'MONITORING ACTIVE' : 'MONITORING PAUSED'}
-                        style={styles.statusText}
+                        text={getMarqueeText()}
+                        style={styles.marqueeText}
+                        scroll={true}
                         flicker={isActive}
+                        containerWidth={screenWidth}
                     />
-                    <Text style={styles.stationSubtitle}>
-                        {stationCount} STATION{stationCount !== 1 ? 'S' : ''}
-                    </Text>
                 </View>
 
                 {/* Compass radar */}
@@ -246,7 +249,7 @@ export default function HomeScreen({ onOpenSettings }) {
                         <CompassRadar
                             heading={heading}
                             stations={nearestStations}
-                            size={250}
+                            size={compassSize}
                             useMetric={useMetric}
                         />
                     </View>
@@ -260,33 +263,34 @@ export default function HomeScreen({ onOpenSettings }) {
                     </View>
                 )}
 
-                {/* Monitoring toggle button */}
-                <View style={styles.buttonArea}>
-                    <MonitoringButton
-                        isActive={isActive}
-                        onToggle={handleToggleMonitoring}
-                    />
-                </View>
+                {/* Switch + status centered in remaining space */}
+                <View style={styles.bottomSection}>
+                    <View style={styles.buttonArea}>
+                        <MonitoringButton
+                            isActive={isActive}
+                            onToggle={handleToggleMonitoring}
+                        />
+                    </View>
 
-                {/* Scrolling marquee */}
-                <View style={styles.marqueeWrapper}>
-                    <LEDText
-                        text={getMarqueeText()}
-                        style={styles.marqueeText}
-                        scroll={true}
-                        flicker={isActive}
-                        containerWidth={280}
-                    />
-                </View>
-
-                {/* Cooldown bar */}
-                {cooldownText && (
-                    <View style={styles.cooldownBar}>
-                        <Text style={styles.cooldownText}>
-                            Cooldown: {cooldownText}
+                    <View style={styles.statusArea}>
+                        <LEDText
+                            text={isActive ? 'MONITORING ACTIVE' : 'MONITORING PAUSED'}
+                            style={styles.statusText}
+                            flicker={isActive}
+                        />
+                        <Text style={styles.stationSubtitle}>
+                            {stationCount} STATION{stationCount !== 1 ? 'S' : ''}
                         </Text>
                     </View>
-                )}
+
+                    {cooldownText && (
+                        <View style={styles.cooldownBar}>
+                            <Text style={styles.cooldownText}>
+                                Cooldown: {cooldownText}
+                            </Text>
+                        </View>
+                    )}
+                </View>
             </ScrollView>
 
             {/* Status indicators pinned to bottom */}
@@ -313,7 +317,7 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'stretch',
         paddingHorizontal: 20,
         paddingTop: 16,
         paddingBottom: 8,
@@ -334,17 +338,21 @@ const styles = StyleSheet.create({
         letterSpacing: TYPOGRAPHY.letterSpacing,
         marginTop: 4,
     },
-    settingsButton: {
-        padding: 8,
-        marginTop: 8,
+    settingsBox: {
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    settingsIcon: {
-        fontSize: 24,
-        color: COLORS.secondary,
+    settingsLabel: {
+        fontSize: TYPOGRAPHY.headingSize,
+        letterSpacing: TYPOGRAPHY.letterSpacing,
     },
     statusArea: {
         alignItems: 'center',
-        paddingTop: 24,
+        paddingTop: 8,
         paddingBottom: 8,
     },
     statusText: {
@@ -359,24 +367,28 @@ const styles = StyleSheet.create({
     },
     compassWrapper: {
         alignItems: 'center',
-        paddingVertical: 16,
+        paddingVertical: 8,
     },
     compassFallback: {
         alignItems: 'center',
         paddingVertical: 32,
     },
+    bottomSection: {
+        flex: 1,
+        justifyContent: 'center',
+    },
     buttonArea: {
         alignItems: 'center',
-        paddingVertical: 24,
+        paddingVertical: 12,
     },
     marqueeWrapper: {
-        width: 280,
-        alignSelf: 'center',
+        width: '100%',
         borderTopWidth: 1,
         borderBottomWidth: 1,
         borderColor: COLORS.muted,
         paddingVertical: 6,
-        marginBottom: 16,
+        marginTop: 4,
+        marginBottom: 8,
     },
     marqueeText: {
         fontSize: TYPOGRAPHY.bodySize,

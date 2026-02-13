@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, View, StyleSheet } from 'react-native';
+import { Animated, Easing, View, StyleSheet } from 'react-native';
 import { COLORS, FONTS } from '../theme/colors';
 
 /**
@@ -82,12 +82,15 @@ export default function LEDText({
     useEffect(() => {
         if (!scroll || textWidth === 0) return;
 
-        const duration = Math.max(4000, (containerWidth + textWidth) * 12);
+        const PIXELS_PER_SECOND = 50;
+        const totalDistance = containerWidth + textWidth;
+        const duration = (totalDistance / PIXELS_PER_SECOND) * 1000;
 
         const loop = Animated.loop(
             Animated.timing(scrollAnim, {
                 toValue: -textWidth,
                 duration,
+                easing: Easing.linear,
                 useNativeDriver: true,
             }),
         );

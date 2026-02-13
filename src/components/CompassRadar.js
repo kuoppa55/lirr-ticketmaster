@@ -6,7 +6,7 @@
  * bearing and logarithmic distance scaling.
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { formatDistance } from '../utils/units';
 import { COLORS, FONTS } from '../theme/colors';
@@ -49,10 +49,20 @@ export default function CompassRadar({
     const center = size / 2;
     const maxR = center - 30; // Leave room for labels at edges
 
-    // Find the maximum distance for logarithmic scaling
-    const maxDistance = stations.length > 0
+    // Stabilize maxDistance to prevent cosmetic jitter from GPS noise.
+    // Only update when the raw value changes by more than 15%.
+    const stableMaxDistRef = useRef(1);
+    const rawMaxDistance = stations.length > 0
         ? Math.max(...stations.map((s) => s.distance), 1)
         : 1;
+    const stableVal = stableMaxDistRef.current;
+    if (
+        stableVal === 1 ||
+        Math.abs(rawMaxDistance - stableVal) / stableVal > 0.15
+    ) {
+        stableMaxDistRef.current = rawMaxDistance;
+    }
+    const maxDistance = stableMaxDistRef.current;
 
     // Position the "N" indicator on the ring
     const nAngleRad = ((360 - heading) * Math.PI) / 180;
