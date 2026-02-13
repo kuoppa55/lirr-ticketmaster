@@ -12,6 +12,7 @@ import {
     TextInput,
     StyleSheet,
 } from 'react-native';
+import { COLORS } from '../theme/colors';
 
 /**
  * PresetChips component.
@@ -121,7 +122,7 @@ export default function PresetChips({
                     <TextInput
                         style={styles.customInput}
                         placeholder={customPlaceholder}
-                        placeholderTextColor="#999"
+                        placeholderTextColor={COLORS.muted}
                         keyboardType="numeric"
                         value={customText}
                         onChangeText={handleCustomChange}
@@ -150,21 +151,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
-        backgroundColor: '#F0F0F0',
+        backgroundColor: COLORS.surfaceElevated,
         borderWidth: 1.5,
-        borderColor: '#E0E0E0',
+        borderColor: COLORS.dimmed,
     },
     chipSelected: {
-        backgroundColor: '#0066CC',
-        borderColor: '#0066CC',
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
     },
     chipText: {
         fontSize: 14,
-        color: '#333333',
+        color: COLORS.secondary,
         fontWeight: '500',
     },
     chipTextSelected: {
-        color: '#FFFFFF',
+        color: COLORS.background,
     },
     customInputRow: {
         flexDirection: 'row',
@@ -174,18 +175,18 @@ const styles = StyleSheet.create({
     customInput: {
         flex: 1,
         borderWidth: 1.5,
-        borderColor: '#0066CC',
+        borderColor: COLORS.primary,
         borderRadius: 8,
         paddingHorizontal: 12,
         paddingVertical: 8,
         fontSize: 16,
-        color: '#333333',
-        backgroundColor: '#FFFFFF',
+        color: COLORS.primary,
+        backgroundColor: COLORS.surface,
     },
     customUnit: {
         marginLeft: 8,
         fontSize: 14,
-        color: '#666666',
+        color: COLORS.secondary,
         fontWeight: '500',
     },
 });

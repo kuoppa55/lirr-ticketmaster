@@ -28,6 +28,7 @@ import {
     isInCooldown,
     setLastNotificationTime,
 } from '../services/storage';
+import { COLORS, LED_GLOW, FONTS } from '../theme/colors';
 
 /**
  * SettingsScreen component.
@@ -39,7 +40,6 @@ import {
  *     onBack: Callback to navigate back to home.
  *     onEditStations: Callback to navigate to station edit screen.
  *     onOpenDebug: Callback to navigate to debug screen.
- *     onOpenThemePreview: Callback to navigate to theme preview screen.
  */
 export default function SettingsScreen({
     settings,
@@ -48,7 +48,6 @@ export default function SettingsScreen({
     onBack,
     onEditStations,
     onOpenDebug,
-    onOpenThemePreview,
 }) {
     const [showDebug, setShowDebug] = useState(false);
     const { geofenceRadiusMeters, dwellTimeMs, cooldownMs, useMetric } =
@@ -126,7 +125,10 @@ export default function SettingsScreen({
                             onValueChange={(value) =>
                                 onUpdateSetting('useMetric', value)
                             }
-                            trackColor={{ false: '#0066CC', true: '#0066CC' }}
+                            trackColor={{
+                                false: COLORS.primary,
+                                true: COLORS.primary,
+                            }}
                             thumbColor="#FFFFFF"
                         />
                         <Text
@@ -225,14 +227,6 @@ export default function SettingsScreen({
                 <Text style={styles.actionButtonText}>Edit Stations</Text>
             </TouchableOpacity>
 
-            {/* Choose Theme */}
-            <TouchableOpacity
-                style={[styles.actionButton, styles.themeButton]}
-                onPress={onOpenThemePreview}
-            >
-                <Text style={styles.actionButtonText}>Choose Theme</Text>
-            </TouchableOpacity>
-
             {/* Debug Tools */}
             <TouchableOpacity
                 style={styles.debugToggle}
@@ -262,7 +256,7 @@ export default function SettingsScreen({
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.debugButton, styles.debugButtonPurple]}
+                        style={styles.debugButton}
                         onPress={onOpenDebug}
                     >
                         <Text style={styles.debugButtonText}>
@@ -278,13 +272,13 @@ export default function SettingsScreen({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: COLORS.background,
     },
     content: {
         paddingBottom: 40,
     },
     header: {
-        backgroundColor: '#0066CC',
+        backgroundColor: COLORS.surface,
         paddingTop: 60,
         paddingBottom: 20,
         paddingHorizontal: 20,
@@ -294,36 +288,36 @@ const styles = StyleSheet.create({
     },
     backButtonText: {
         fontSize: 16,
-        color: '#FFFFFF',
-        opacity: 0.9,
+        color: COLORS.secondary,
     },
     title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
+        fontSize: 14,
+        fontFamily: FONTS.pixel,
+        color: COLORS.primary,
+        ...LED_GLOW,
     },
     section: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.surfaceElevated,
         marginHorizontal: 16,
         marginTop: 16,
         borderRadius: 12,
         padding: 16,
     },
     sectionTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#333333',
+        fontSize: 10,
+        fontFamily: FONTS.pixel,
+        color: COLORS.primary,
         marginBottom: 6,
     },
     sectionDescription: {
         fontSize: 14,
-        color: '#666666',
+        color: COLORS.secondary,
         lineHeight: 20,
         marginBottom: 8,
     },
     currentValue: {
         fontSize: 13,
-        color: '#0066CC',
+        color: COLORS.primary,
         fontWeight: '600',
         marginBottom: 4,
     },
@@ -335,7 +329,7 @@ const styles = StyleSheet.create({
     unitLabel: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#333333',
+        color: COLORS.primary,
     },
     unitSwitchRow: {
         flexDirection: 'row',
@@ -344,21 +338,21 @@ const styles = StyleSheet.create({
     },
     unitOption: {
         fontSize: 14,
-        color: '#999999',
+        color: COLORS.muted,
     },
     unitOptionActive: {
-        color: '#0066CC',
+        color: COLORS.primary,
         fontWeight: '600',
     },
     defaultsNote: {
         fontSize: 12,
-        color: '#999999',
+        color: COLORS.muted,
         textAlign: 'center',
         marginTop: 16,
         marginHorizontal: 16,
     },
     saveButton: {
-        backgroundColor: '#00CC66',
+        backgroundColor: COLORS.primary,
         marginHorizontal: 16,
         marginTop: 24,
         borderRadius: 12,
@@ -366,12 +360,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     saveButtonText: {
-        color: '#FFFFFF',
+        color: COLORS.background,
         fontSize: 18,
         fontWeight: '700',
     },
     actionButton: {
-        backgroundColor: '#0066CC',
+        backgroundColor: COLORS.secondary,
         marginHorizontal: 16,
         marginTop: 12,
         borderRadius: 12,
@@ -379,12 +373,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     actionButtonText: {
-        color: '#FFFFFF',
+        color: COLORS.background,
         fontSize: 18,
         fontWeight: '600',
-    },
-    themeButton: {
-        backgroundColor: '#8E44AD',
     },
     debugToggle: {
         marginHorizontal: 16,
@@ -394,7 +385,7 @@ const styles = StyleSheet.create({
     },
     debugToggleText: {
         fontSize: 14,
-        color: '#999999',
+        color: COLORS.muted,
         fontWeight: '600',
     },
     debugSection: {
@@ -402,16 +393,13 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     debugButton: {
-        backgroundColor: '#FF9500',
+        backgroundColor: COLORS.secondary,
         borderRadius: 12,
         paddingVertical: 14,
         alignItems: 'center',
     },
-    debugButtonPurple: {
-        backgroundColor: '#8E44AD',
-    },
     debugButtonText: {
-        color: '#FFFFFF',
+        color: COLORS.background,
         fontSize: 16,
         fontWeight: '600',
     },

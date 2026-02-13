@@ -7,9 +7,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
+import { useFonts, PressStart2P_400Regular } from '@expo-google-fonts/press-start-2p';
 
 import { GEOFENCING_TASK_NAME } from './src/constants';
 import { findStationById } from './src/data/stations';
@@ -42,7 +43,6 @@ import StationSelectScreen from './src/screens/StationSelectScreen';
 import DebugScreen from './src/screens/DebugScreen';
 import SettingsConfigScreen from './src/screens/SettingsConfigScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import ThemePreviewScreen from './src/screens/ThemePreviewScreen';
 
 // In-memory tracking for dwell timers (persists while app process runs)
 const pendingDwellTimers = {};
@@ -137,6 +137,10 @@ export default function App() {
         updateSetting,
         saveSettings,
     } = useSettings();
+
+    const [fontsLoaded, fontError] = useFonts({
+        PressStart2P_400Regular,
+    });
 
     // Track previous radius to detect changes that need geofence restart
     const [savedRadiusMeters, setSavedRadiusMeters] = useState(null);
@@ -307,25 +311,16 @@ export default function App() {
         setScreen('settings');
     };
 
-    /**
-     * Navigate to theme preview screen from settings.
-     */
-    const handleOpenThemePreview = () => {
-        setScreen('theme-preview');
-    };
+    // Font loading is ready if loaded successfully OR if it errored (graceful fallback)
+    const fontsReady = fontsLoaded || !!fontError;
 
-    /**
-     * Navigate back from theme preview to settings.
-     */
-    const handleCloseThemePreview = () => {
-        setScreen('settings');
-    };
-
-    // Render loading state
-    if (screen === 'loading' || settingsLoading) {
+    // Render loading state (including font loading)
+    if (screen === 'loading' || settingsLoading || !fontsReady) {
         return (
-            <View style={styles.container}>
+            <View style={styles.loadingScreen}>
                 <StatusBar barStyle="light-content" />
+                <ActivityIndicator size="large" color="#FF8C00" />
+                <Text style={styles.loadingText}>Loading...</Text>
             </View>
         );
     }
@@ -370,18 +365,7 @@ export default function App() {
                     onBack={handleCloseSettings}
                     onEditStations={handleEditStations}
                     onOpenDebug={handleOpenDebug}
-                    onOpenThemePreview={handleOpenThemePreview}
                 />
-            </View>
-        );
-    }
-
-    // Render theme preview screen
-    if (screen === 'theme-preview') {
-        return (
-            <View style={styles.container}>
-                <StatusBar barStyle="light-content" />
-                <ThemePreviewScreen onBack={handleCloseThemePreview} />
             </View>
         );
     }
@@ -408,6 +392,17 @@ export default function App() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#1A1A2E',
+        backgroundColor: '#000000',
+    },
+    loadingScreen: {
+        flex: 1,
+        backgroundColor: '#000000',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        color: '#FF8C00',
+        marginTop: 12,
+        fontSize: 14,
     },
 });

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { getBranches, getStationsByBranch } from '../data/stations';
 import { useStationSelection } from '../hooks/useStationSelection';
+import { COLORS, LED_GLOW, FONTS } from '../theme/colors';
 
 /**
  * Station selection screen component.
@@ -126,7 +127,7 @@ export default function StationSelectScreen({ onComplete, isOnboarding }) {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0066CC" />
+                <ActivityIndicator size="large" color={COLORS.primary} />
             </View>
         );
     }
@@ -188,86 +189,86 @@ export default function StationSelectScreen({ onComplete, isOnboarding }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: COLORS.background,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F5F5F5',
+        backgroundColor: COLORS.background,
     },
     header: {
-        backgroundColor: '#0066CC',
+        backgroundColor: COLORS.surface,
         paddingTop: 60,
         paddingBottom: 20,
         paddingHorizontal: 20,
     },
     title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
+        fontSize: 14,
+        fontFamily: FONTS.pixel,
+        color: COLORS.primary,
+        ...LED_GLOW,
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 16,
-        color: '#FFFFFF',
-        opacity: 0.9,
+        color: COLORS.secondary,
         marginBottom: 16,
     },
     countContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: COLORS.countBg,
         borderRadius: 8,
         paddingVertical: 8,
         paddingHorizontal: 12,
     },
     countText: {
         fontSize: 14,
-        color: '#FFFFFF',
+        color: COLORS.primary,
         fontWeight: '600',
     },
     listContent: {
         paddingBottom: 100,
     },
     sectionHeader: {
-        backgroundColor: '#E8E8E8',
+        backgroundColor: COLORS.surfaceElevated,
         paddingVertical: 10,
         paddingHorizontal: 20,
     },
     sectionTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#333333',
+        color: COLORS.primary,
     },
     stationItem: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.surface,
         paddingVertical: 14,
         paddingHorizontal: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#EEEEEE',
+        borderBottomColor: COLORS.dimmed,
     },
     stationItemSelected: {
-        backgroundColor: '#E6F2FF',
+        backgroundColor: COLORS.selectedBg,
     },
     stationItemMajor: {
-        backgroundColor: '#FFF9E6',
+        backgroundColor: COLORS.majorBg,
     },
     stationInfo: {
         flex: 1,
     },
     stationName: {
         fontSize: 16,
-        color: '#333333',
+        color: COLORS.secondary,
     },
     stationNameSelected: {
         fontWeight: '600',
-        color: '#0066CC',
+        color: COLORS.primary,
     },
     majorLabel: {
         fontSize: 12,
-        color: '#CC8800',
+        color: COLORS.primary,
         marginTop: 2,
         fontWeight: '500',
     },
@@ -276,20 +277,20 @@ const styles = StyleSheet.create({
         height: 24,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: '#CCCCCC',
+        borderColor: COLORS.muted,
         justifyContent: 'center',
         alignItems: 'center',
     },
     checkboxSelected: {
-        backgroundColor: '#0066CC',
-        borderColor: '#0066CC',
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
     },
     checkboxMajor: {
-        backgroundColor: '#CC8800',
-        borderColor: '#CC8800',
+        backgroundColor: COLORS.secondary,
+        borderColor: COLORS.secondary,
     },
     checkmark: {
-        color: '#FFFFFF',
+        color: COLORS.background,
         fontSize: 14,
         fontWeight: 'bold',
     },
@@ -298,26 +299,26 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.surface,
         paddingVertical: 16,
         paddingHorizontal: 20,
         paddingBottom: Platform.OS === 'ios' ? 34 : 16,
         borderTopWidth: 1,
-        borderTopColor: '#EEEEEE',
-        shadowColor: '#000',
+        borderTopColor: COLORS.dimmed,
+        shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 5,
     },
     saveButton: {
-        backgroundColor: '#0066CC',
+        backgroundColor: COLORS.primary,
         borderRadius: 12,
         paddingVertical: 16,
         alignItems: 'center',
     },
     saveButtonText: {
-        color: '#FFFFFF',
+        color: COLORS.background,
         fontSize: 18,
         fontWeight: '600',
     },

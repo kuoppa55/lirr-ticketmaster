@@ -15,6 +15,7 @@ import {
 
 import { useDebugState } from '../hooks/useDebugState';
 import { formatDistance } from '../utils/geo';
+import { COLORS, LED_GLOW, FONTS } from '../theme/colors';
 
 /**
  * Format timestamp for display.
@@ -151,7 +152,7 @@ export default function DebugScreen({ onBack }) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#0066CC" />
+                    <ActivityIndicator size="large" color={COLORS.primary} />
                     <Text style={styles.loadingText}>Loading debug data...</Text>
                 </View>
             </SafeAreaView>
@@ -325,7 +326,7 @@ export default function DebugScreen({ onBack }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: COLORS.background,
     },
     loadingContainer: {
         flex: 1,
@@ -335,7 +336,7 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 12,
         fontSize: 16,
-        color: '#666666',
+        color: COLORS.secondary,
     },
     header: {
         flexDirection: 'row',
@@ -343,26 +344,27 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: '#0066CC',
+        backgroundColor: COLORS.surface,
     },
     backButton: {
         padding: 8,
     },
     backButtonText: {
-        color: '#FFFFFF',
+        color: COLORS.secondary,
         fontSize: 16,
         fontWeight: '600',
     },
     headerTitle: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '700',
+        fontSize: 12,
+        fontFamily: FONTS.pixel,
+        color: COLORS.primary,
+        ...LED_GLOW,
     },
     refreshButton: {
         padding: 8,
     },
     refreshButtonText: {
-        color: '#FFFFFF',
+        color: COLORS.primary,
         fontSize: 16,
         fontWeight: '600',
     },
@@ -374,17 +376,17 @@ const styles = StyleSheet.create({
         paddingBottom: 32,
     },
     card: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.surfaceElevated,
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
+        borderColor: COLORS.dimmed,
     },
     cardTitle: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#666666',
+        fontSize: 8,
+        fontFamily: FONTS.pixel,
+        color: COLORS.primary,
         marginBottom: 12,
         letterSpacing: 0.5,
     },
@@ -396,19 +398,19 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 14,
-        color: '#333333',
+        color: COLORS.secondary,
     },
     value: {
         fontSize: 14,
         fontFamily: 'monospace',
-        color: '#333333',
+        color: COLORS.primary,
     },
     errorText: {
-        color: '#CC0000',
+        color: COLORS.error,
         fontSize: 14,
     },
     noDataText: {
-        color: '#999999',
+        color: COLORS.muted,
         fontSize: 14,
         fontStyle: 'italic',
     },
@@ -416,24 +418,24 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 8,
-        backgroundColor: '#E6FFE6',
+        backgroundColor: COLORS.insideBg,
         borderRadius: 8,
         paddingHorizontal: 12,
         marginBottom: 8,
     },
     insideIndicator: {
-        color: '#00CC66',
+        color: COLORS.primary,
         fontSize: 16,
         marginRight: 8,
     },
     insideText: {
-        color: '#006633',
+        color: COLORS.primary,
         fontSize: 14,
         fontWeight: '600',
     },
     subTitle: {
         fontSize: 12,
-        color: '#666666',
+        color: COLORS.muted,
         marginTop: 12,
         marginBottom: 8,
     },
@@ -445,16 +447,16 @@ const styles = StyleSheet.create({
     },
     nearbyName: {
         fontSize: 14,
-        color: '#333333',
+        color: COLORS.secondary,
     },
     nearbyDistance: {
         fontSize: 14,
-        color: '#666666',
+        color: COLORS.muted,
         fontFamily: 'monospace',
     },
     divider: {
         height: 1,
-        backgroundColor: '#E0E0E0',
+        backgroundColor: COLORS.dimmed,
         marginVertical: 12,
     },
     permissionRow: {
@@ -471,60 +473,60 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     badgeGranted: {
-        backgroundColor: '#00CC66',
+        backgroundColor: COLORS.primary,
     },
     badgeDenied: {
-        backgroundColor: '#CC0000',
+        backgroundColor: COLORS.muted,
     },
     badgeText: {
-        color: '#FFFFFF',
+        color: COLORS.background,
         fontSize: 14,
         fontWeight: '700',
     },
     warningText: {
-        color: '#CC8800',
+        color: COLORS.primary,
     },
     successText: {
-        color: '#00CC66',
+        color: COLORS.primary,
     },
     timerCard: {
-        backgroundColor: '#FFF9E6',
+        backgroundColor: 'rgba(204, 112, 0, 0.2)',
         borderRadius: 8,
         padding: 12,
         marginBottom: 8,
         borderWidth: 1,
-        borderColor: '#FFE066',
+        borderColor: COLORS.secondary,
     },
     timerStation: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#333333',
+        color: COLORS.primary,
         marginBottom: 4,
     },
     timerRemaining: {
         fontSize: 12,
-        color: '#996600',
+        color: COLORS.secondary,
         marginBottom: 8,
     },
     progressContainer: {
         height: 8,
-        backgroundColor: '#E0E0E0',
+        backgroundColor: COLORS.dimmed,
         borderRadius: 4,
         overflow: 'hidden',
     },
     progressBar: {
         height: '100%',
-        backgroundColor: '#FFB800',
+        backgroundColor: COLORS.primary,
         borderRadius: 4,
     },
     debugWarning: {
-        color: '#CC8800',
+        color: COLORS.primary,
         fontWeight: '600',
     },
     debugNote: {
         marginTop: 12,
         fontSize: 12,
-        color: '#CC8800',
+        color: COLORS.secondary,
         textAlign: 'center',
         fontStyle: 'italic',
     },

@@ -33,8 +33,11 @@ import { MAJOR_JUNCTIONS } from '../data/stations';
 import MonitoringButton from '../components/MonitoringButton';
 import StatusIndicators from '../components/StatusIndicators';
 import CompassRadar from '../components/CompassRadar';
+import LEDText from '../components/LEDText';
 import { useCompass } from '../hooks/useCompass';
 import { useNearestStations } from '../hooks/useNearestStations';
+import { COLORS, FONTS, TYPOGRAPHY } from '../theme/colors';
+import { formatDistance } from '../utils/units';
 
 /**
  * Home screen component.
@@ -182,6 +185,22 @@ export default function HomeScreen({ onOpenSettings }) {
     const cooldownText = formatCooldown(cooldownRemaining);
     const showCompass = isActive && compassAvailable && location;
 
+    const getMarqueeText = () => {
+        if (!isActive) {
+            return '  MONITORING PAUSED  ---  TAP BUTTON TO START  ---  LIRR TICKET REMINDER  ';
+        }
+        if (nearestStations.length === 0) {
+            return '  SCANNING FOR STATIONS  ---  WAITING FOR LOCATION  ---  ACTIVATE YOUR TICKET  ';
+        }
+        const nearest = nearestStations[0];
+        const next = nearestStations.length > 1 ? nearestStations[1] : null;
+        const dist = formatDistance(nearest.distance, useMetric);
+        if (next) {
+            return `  NOW APPROACHING: ${nearest.name.toUpperCase()} (${dist})  ---  NEXT STOP: ${next.name.toUpperCase()}  ---  ACTIVATE YOUR TICKET  `;
+        }
+        return `  NOW APPROACHING: ${nearest.name.toUpperCase()} (${dist})  ---  ACTIVATE YOUR TICKET  `;
+    };
+
     return (
         <SafeAreaView style={styles.safeArea}>
             <ScrollView
@@ -191,13 +210,16 @@ export default function HomeScreen({ onOpenSettings }) {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor="#999999"
+                        tintColor={COLORS.primary}
                     />
                 }
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.title}>LIRR Reminder</Text>
+                    <View style={styles.titleBox}>
+                        <LEDText text="LIRR" style={styles.titleLarge} flicker={true} />
+                        <LEDText text="REMINDER" style={styles.titleSmall} flicker={true} />
+                    </View>
                     <TouchableOpacity
                         style={styles.settingsButton}
                         onPress={onOpenSettings}
@@ -208,11 +230,13 @@ export default function HomeScreen({ onOpenSettings }) {
 
                 {/* Status label */}
                 <View style={styles.statusArea}>
-                    <Text style={styles.statusText}>
-                        {isActive ? 'Monitoring Active' : 'Monitoring Paused'}
-                    </Text>
+                    <LEDText
+                        text={isActive ? 'MONITORING ACTIVE' : 'MONITORING PAUSED'}
+                        style={styles.statusText}
+                        flicker={isActive}
+                    />
                     <Text style={styles.stationSubtitle}>
-                        {stationCount} station{stationCount !== 1 ? 's' : ''}
+                        {stationCount} STATION{stationCount !== 1 ? 'S' : ''}
                     </Text>
                 </View>
 
@@ -244,6 +268,17 @@ export default function HomeScreen({ onOpenSettings }) {
                     />
                 </View>
 
+                {/* Scrolling marquee */}
+                <View style={styles.marqueeWrapper}>
+                    <LEDText
+                        text={getMarqueeText()}
+                        style={styles.marqueeText}
+                        scroll={true}
+                        flicker={isActive}
+                        containerWidth={280}
+                    />
+                </View>
+
                 {/* Cooldown bar */}
                 {cooldownText && (
                     <View style={styles.cooldownBar}>
@@ -266,7 +301,7 @@ export default function HomeScreen({ onOpenSettings }) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#1A1A2E',
+        backgroundColor: COLORS.background,
     },
     container: {
         flex: 1,
@@ -278,22 +313,34 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         paddingHorizontal: 20,
         paddingTop: 16,
         paddingBottom: 8,
     },
-    title: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#FFFFFF',
+    titleBox: {
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+    },
+    titleLarge: {
+        fontSize: TYPOGRAPHY.titleSize,
+        letterSpacing: TYPOGRAPHY.letterSpacing,
+    },
+    titleSmall: {
+        fontSize: TYPOGRAPHY.headingSize,
+        letterSpacing: TYPOGRAPHY.letterSpacing,
+        marginTop: 4,
     },
     settingsButton: {
         padding: 8,
+        marginTop: 8,
     },
     settingsIcon: {
         fontSize: 24,
-        color: '#AAAAAA',
+        color: COLORS.secondary,
     },
     statusArea: {
         alignItems: 'center',
@@ -301,13 +348,13 @@ const styles = StyleSheet.create({
         paddingBottom: 8,
     },
     statusText: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: '#FFFFFF',
+        fontSize: TYPOGRAPHY.bodySize,
     },
     stationSubtitle: {
-        fontSize: 14,
-        color: '#888888',
+        fontSize: TYPOGRAPHY.smallSize,
+        fontFamily: FONTS.pixel,
+        color: COLORS.muted,
+        letterSpacing: TYPOGRAPHY.letterSpacing,
         marginTop: 6,
     },
     compassWrapper: {
@@ -322,13 +369,26 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 24,
     },
+    marqueeWrapper: {
+        width: 280,
+        alignSelf: 'center',
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: COLORS.muted,
+        paddingVertical: 6,
+        marginBottom: 16,
+    },
+    marqueeText: {
+        fontSize: TYPOGRAPHY.bodySize,
+        color: COLORS.primary,
+    },
     compassFallbackText: {
         fontSize: 13,
-        color: '#666666',
+        color: COLORS.muted,
         fontStyle: 'italic',
     },
     cooldownBar: {
-        backgroundColor: 'rgba(255, 204, 0, 0.12)',
+        backgroundColor: COLORS.cooldownBg,
         borderRadius: 8,
         marginHorizontal: 32,
         marginBottom: 16,
@@ -336,11 +396,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255, 204, 0, 0.25)',
+        borderColor: COLORS.cooldownBorder,
     },
     cooldownText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#FFCC00',
+        fontSize: TYPOGRAPHY.smallSize,
+        fontFamily: FONTS.pixel,
+        color: COLORS.primary,
     },
 });

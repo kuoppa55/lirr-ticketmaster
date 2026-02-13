@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { COLORS } from '../theme/colors';
 
 /**
  * StatusIndicators component.
@@ -60,13 +61,13 @@ const styles = StyleSheet.create({
         borderRadius: 4,
     },
     dotActive: {
-        backgroundColor: '#00CC66',
+        backgroundColor: COLORS.primary,
     },
     dotInactive: {
-        backgroundColor: '#666666',
+        backgroundColor: COLORS.dimmed,
     },
     label: {
         fontSize: 12,
-        color: '#999999',
+        color: COLORS.muted,
     },
 });

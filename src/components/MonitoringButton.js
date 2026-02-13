@@ -1,12 +1,13 @@
 /**
  * Large circular toggle button for monitoring state.
  *
- * Displays a ~180px circle that glows green when active and goes dark when
+ * Displays a ~180px circle that glows orange when active and goes dark when
  * paused. Includes press-in/press-out scale animation using the native driver.
  */
 
 import React, { useRef, useCallback } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { COLORS, FONTS } from '../theme/colors';
 
 const BUTTON_SIZE = 180;
 
@@ -111,17 +112,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     buttonActive: {
-        backgroundColor: '#00CC66',
-        shadowColor: '#00CC66',
+        backgroundColor: COLORS.primary,
+        shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.5,
         shadowRadius: 20,
         elevation: 12,
     },
     buttonInactive: {
-        backgroundColor: '#333333',
+        backgroundColor: COLORS.surfaceElevated,
         borderWidth: 2,
-        borderColor: '#555555',
+        borderColor: COLORS.dimmed,
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
@@ -137,20 +138,20 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     iconActive: {
-        color: '#FFFFFF',
+        color: COLORS.background,
     },
     iconInactive: {
-        color: '#888888',
+        color: COLORS.muted,
     },
     label: {
-        fontSize: 16,
-        fontWeight: '700',
+        fontSize: 12,
+        fontFamily: FONTS.pixel,
         letterSpacing: 2,
     },
     labelActive: {
-        color: '#FFFFFF',
+        color: COLORS.background,
     },
     labelInactive: {
-        color: '#888888',
+        color: COLORS.muted,
     },
 });

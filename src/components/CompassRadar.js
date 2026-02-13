@@ -9,9 +9,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { formatDistance } from '../utils/units';
+import { COLORS, FONTS } from '../theme/colors';
+import LEDText from './LEDText';
 
-const RING_COLOR = 'rgba(255, 255, 255, 0.08)';
-const CROSSHAIR_COLOR = 'rgba(255, 255, 255, 0.06)';
+const RING_COLOR = COLORS.radarRing;
+const CROSSHAIR_COLOR = COLORS.radarCrosshair;
 const CENTER_DOT_SIZE = 8;
 
 /**
@@ -24,9 +26,9 @@ const CENTER_DOT_SIZE = 8;
  *     Color string.
  */
 function getDotColor(ratio) {
-    if (ratio < 0.33) return '#00CC66';
-    if (ratio < 0.66) return '#FFCC00';
-    return '#888888';
+    if (ratio < 0.33) return COLORS.primary;
+    if (ratio < 0.66) return COLORS.secondary;
+    return COLORS.muted;
 }
 
 /**
@@ -135,7 +137,7 @@ export default function CompassRadar({
                     },
                 ]}
             >
-                <Text style={styles.northText}>N</Text>
+                <LEDText text="N" style={styles.northText} flicker={true} />
             </View>
 
             {/* Station dots and labels */}
@@ -196,7 +198,7 @@ const styles = StyleSheet.create({
     },
     background: {
         position: 'absolute',
-        backgroundColor: '#0D0D1A',
+        backgroundColor: COLORS.radarBg,
     },
     ring: {
         position: 'absolute',
@@ -218,7 +220,7 @@ const styles = StyleSheet.create({
         width: CENTER_DOT_SIZE,
         height: CENTER_DOT_SIZE,
         borderRadius: CENTER_DOT_SIZE / 2,
-        backgroundColor: '#4DA6FF',
+        backgroundColor: COLORS.primary,
     },
     northContainer: {
         position: 'absolute',
@@ -228,9 +230,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     northText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#FF4444',
+        fontSize: 10,
+        fontFamily: FONTS.pixel,
+        color: COLORS.primary,
     },
     stationContainer: {
         position: 'absolute',
@@ -248,12 +250,12 @@ const styles = StyleSheet.create({
     },
     stationName: {
         fontSize: 9,
-        color: '#CCCCCC',
+        color: COLORS.secondary,
         textAlign: 'center',
     },
     stationDistance: {
         fontSize: 8,
-        color: '#888888',
+        color: COLORS.muted,
         textAlign: 'center',
     },
 });
