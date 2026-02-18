@@ -39,6 +39,7 @@ export default function PresetChips({
 }) {
     const [isCustom, setIsCustom] = useState(false);
     const [customText, setCustomText] = useState('');
+    const [hasCustomError, setHasCustomError] = useState(false);
 
     const getPresetValue = (preset) => {
         if (!useMetric && preset.valueImperial !== undefined) {
@@ -53,29 +54,42 @@ export default function PresetChips({
     const handlePresetPress = (preset) => {
         setIsCustom(false);
         setCustomText('');
+        setHasCustomError(false);
         onSelect(getPresetValue(preset));
     };
 
     const handleCustomPress = () => {
         setIsCustom(true);
+        setHasCustomError(false);
     };
 
     const handleCustomSubmit = () => {
         if (parseCustom && customText.trim()) {
             const parsed = parseCustom(customText.trim());
             if (!isNaN(parsed) && parsed > 0) {
+                setHasCustomError(false);
                 onSelect(parsed);
+                return;
             }
+            setHasCustomError(true);
         }
     };
 
     const handleCustomChange = (text) => {
         setCustomText(text);
+        if (!text.trim()) {
+            setHasCustomError(false);
+            return;
+        }
+
         if (parseCustom && text.trim()) {
             const parsed = parseCustom(text.trim());
             if (!isNaN(parsed) && parsed > 0) {
+                setHasCustomError(false);
                 onSelect(parsed);
+                return;
             }
+            setHasCustomError(true);
         }
     };
 
@@ -141,6 +155,11 @@ export default function PresetChips({
                     ) : null}
                 </View>
             )}
+            {isCustom && hasCustomError && (
+                <Text style={styles.customError}>
+                    Enter a value within the allowed range.
+                </Text>
+            )}
         </View>
     );
 }
@@ -196,5 +215,10 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.pixel,
         fontSize: 9,
         color: COLORS.primary,
+    },
+    customError: {
+        marginTop: 6,
+        fontSize: 12,
+        color: COLORS.secondary,
     },
 });

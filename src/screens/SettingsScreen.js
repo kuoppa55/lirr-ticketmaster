@@ -16,7 +16,12 @@ import {
 } from 'react-native';
 
 import PresetChips from '../components/PresetChips';
-import { RADIUS_PRESETS, DWELL_PRESETS, COOLDOWN_PRESETS } from '../constants';
+import {
+    RADIUS_PRESETS,
+    DWELL_PRESETS,
+    COOLDOWN_PRESETS,
+    SETTINGS_LIMITS,
+} from '../constants';
 import {
     formatDistance,
     formatDuration,
@@ -29,6 +34,7 @@ import {
     setLastNotificationTime,
 } from '../services/storage';
 import { COLORS, LED_GLOW, FONTS } from '../theme/colors';
+import { IS_NON_PROD } from '../config/env';
 
 /**
  * SettingsScreen component.
@@ -50,7 +56,13 @@ export default function SettingsScreen({
     onOpenDebug,
 }) {
     const [showDebug, setShowDebug] = useState(false);
-    const { geofenceRadiusMeters, dwellTimeMs, cooldownMs, useMetric } =
+    const {
+        geofenceRadiusMeters,
+        dwellTimeMs,
+        cooldownMs,
+        useMetric,
+        notificationPrivacyMode,
+    } =
         settings;
 
     const handleSave = async () => {
@@ -59,6 +71,10 @@ export default function SettingsScreen({
     };
 
     const handleTestNotification = async () => {
+        if (!IS_NON_PROD) {
+            Alert.alert('Unavailable', 'Debug tools are disabled in production.');
+            return;
+        }
         try {
             await sendTestNotification();
             Alert.alert('Success', 'Test notification sent!');
@@ -68,6 +84,10 @@ export default function SettingsScreen({
     };
 
     const handleSimulateStationEntry = async () => {
+        if (!IS_NON_PROD) {
+            Alert.alert('Unavailable', 'Debug tools are disabled in production.');
+            return;
+        }
         try {
             const inCooldown = await isInCooldown();
             if (inCooldown) {
@@ -183,7 +203,12 @@ export default function SettingsScreen({
                     }
                     customPlaceholder="Enter seconds"
                     customUnit="sec"
-                    parseCustom={(text) => parseDurationInput(text, 'seconds')}
+                    parseCustom={(text) =>
+                        parseDurationInput(text, 'seconds', {
+                            minMs: SETTINGS_LIMITS.dwellTimeMs.min,
+                            maxMs: SETTINGS_LIMITS.dwellTimeMs.max,
+                        })
+                    }
                 />
             </View>
 
@@ -204,8 +229,40 @@ export default function SettingsScreen({
                     }
                     customPlaceholder="Enter minutes"
                     customUnit="min"
-                    parseCustom={(text) => parseDurationInput(text, 'minutes')}
+                    parseCustom={(text) =>
+                        parseDurationInput(text, 'minutes', {
+                            minMs: SETTINGS_LIMITS.cooldownMs.min,
+                            maxMs: SETTINGS_LIMITS.cooldownMs.max,
+                        })
+                    }
                 />
+            </View>
+
+            {/* Notification Privacy */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Notification Privacy</Text>
+                <Text style={styles.sectionDescription}>
+                    Hide station names on lockscreen notifications.
+                </Text>
+                <View style={styles.unitSwitchRow}>
+                    <Text style={[styles.unitOption, !notificationPrivacyMode && styles.unitOptionActive]}>
+                        Off
+                    </Text>
+                    <Switch
+                        value={notificationPrivacyMode}
+                        onValueChange={(value) =>
+                            onUpdateSetting('notificationPrivacyMode', value)
+                        }
+                        trackColor={{
+                            false: COLORS.primary,
+                            true: COLORS.primary,
+                        }}
+                        thumbColor="#FFFFFF"
+                    />
+                    <Text style={[styles.unitOption, notificationPrivacyMode && styles.unitOptionActive]}>
+                        On
+                    </Text>
+                </View>
             </View>
 
             {/* Defaults note */}
@@ -226,43 +283,47 @@ export default function SettingsScreen({
                 <Text style={styles.actionButtonText}>Edit Stations</Text>
             </TouchableOpacity>
 
-            {/* Debug Tools */}
-            <TouchableOpacity
-                style={styles.debugToggle}
-                onPress={() => setShowDebug(!showDebug)}
-            >
-                <Text style={styles.debugToggleText}>
-                    Debug Tools {showDebug ? '\u25B2' : '\u25BC'}
-                </Text>
-            </TouchableOpacity>
+            {IS_NON_PROD && (
+                <>
+                    {/* Debug Tools */}
+                    <TouchableOpacity
+                        style={styles.debugToggle}
+                        onPress={() => setShowDebug(!showDebug)}
+                    >
+                        <Text style={styles.debugToggleText}>
+                            Debug Tools {showDebug ? '\u25B2' : '\u25BC'}
+                        </Text>
+                    </TouchableOpacity>
 
-            {showDebug && (
-                <View style={styles.debugSection}>
-                    <TouchableOpacity
-                        style={styles.debugButton}
-                        onPress={handleTestNotification}
-                    >
-                        <Text style={styles.debugButtonText}>
-                            Send Test Notification
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.debugButton}
-                        onPress={handleSimulateStationEntry}
-                    >
-                        <Text style={styles.debugButtonText}>
-                            Simulate Station Entry
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.debugButton}
-                        onPress={onOpenDebug}
-                    >
-                        <Text style={styles.debugButtonText}>
-                            Open Debug Screen
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+                    {showDebug && (
+                        <View style={styles.debugSection}>
+                            <TouchableOpacity
+                                style={styles.debugButton}
+                                onPress={handleTestNotification}
+                            >
+                                <Text style={styles.debugButtonText}>
+                                    Send Test Notification
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.debugButton}
+                                onPress={handleSimulateStationEntry}
+                            >
+                                <Text style={styles.debugButtonText}>
+                                    Simulate Station Entry
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.debugButton}
+                                onPress={onOpenDebug}
+                            >
+                                <Text style={styles.debugButtonText}>
+                                    Open Debug Screen
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </>
             )}
         </ScrollView>
     );

@@ -16,6 +16,7 @@ import {
 import { findNearbyGeofences } from '../utils/geo';
 import { findStationById, LIRR_STATIONS } from '../data/stations';
 import { DEFAULT_SETTINGS } from '../constants';
+import { logger } from '../utils/logger';
 
 /**
  * Hook to manage debug state with real-time location tracking.
@@ -113,7 +114,7 @@ export function useDebugState(autoRefreshInterval = 2000) {
                 cooldownMs: settings.cooldownMs,
             });
         } catch (error) {
-            console.error('Error refreshing debug data:', error);
+            logger.error('Error refreshing debug data:', error);
         }
     }, []);
 
@@ -165,7 +166,7 @@ export function useDebugState(autoRefreshInterval = 2000) {
                 }
             );
         } catch (error) {
-            console.error('Error starting location watch:', error);
+            logger.error('Error starting location watch:', error);
             setLocationError(error.message);
         }
     }, []);

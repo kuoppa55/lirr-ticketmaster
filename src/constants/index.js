@@ -39,6 +39,23 @@ export const DEFAULT_SETTINGS = {
     dwellTimeMs: 60000,
     cooldownMs: 5400000,
     useMetric: false,
+    notificationPrivacyMode: false,
+};
+
+// Validation bounds for user-configurable settings
+export const SETTINGS_LIMITS = {
+    geofenceRadiusMeters: {
+        min: 100,
+        max: 2000,
+    },
+    dwellTimeMs: {
+        min: 15000,
+        max: 300000,
+    },
+    cooldownMs: {
+        min: 300000,
+        max: 21600000,
+    },
 };
 
 // Preset options for geofence radius

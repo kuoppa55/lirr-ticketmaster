@@ -24,7 +24,6 @@ import {
     addPendingDwellTimer,
     removePendingDwellTimer,
     getUserSettings,
-    saveUserSettings,
 } from './src/services/storage';
 import {
     configureNotificationHandler,
@@ -37,6 +36,8 @@ import {
     startGeofencing,
 } from './src/services/geofencing';
 import { useSettings } from './src/hooks/useSettings';
+import { IS_NON_PROD } from './src/config/env';
+import { logger } from './src/utils/logger';
 
 import HomeScreen from './src/screens/HomeScreen';
 import StationSelectScreen from './src/screens/StationSelectScreen';
@@ -54,7 +55,7 @@ const pendingDwellTimers = {};
  */
 TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
     if (error) {
-        console.error('Geofencing task error:', error);
+        logger.error('Geofencing task error:', error);
         return;
     }
 
@@ -66,7 +67,7 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
     const stationId = region?.identifier;
 
     if (!stationId) {
-        console.warn(
+        logger.warn(
             'Geofencing task received event with missing region.identifier:',
             JSON.stringify({ eventType, region })
         );
@@ -74,7 +75,7 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
     }
 
     if (eventType === Location.GeofencingEventType.Enter) {
-        console.log(`Entered geofence: ${stationId}`);
+        logger.info('Entered geofence');
 
         // Find station name for persistence
         const station = findStationById(stationId);
@@ -92,7 +93,7 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
                 // Check global cooldown before sending
                 const inCooldown = await isInCooldown();
                 if (inCooldown) {
-                    console.log('In cooldown period, skipping notification');
+                    logger.info('In cooldown period, skipping notification');
                     delete pendingDwellTimers[stationId];
                     await removePendingDwellTimer(stationId);
                     return;
@@ -100,25 +101,25 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
 
                 // Send notification
                 await sendTicketReminder(stationName);
-                console.log(`Notification sent for: ${stationName}`);
+                logger.info('Notification sent');
 
                 // Start cooldown
                 await setLastNotificationTime(Date.now());
             } catch (err) {
-                console.error('Error sending notification:', err);
+                logger.error('Error sending notification:', err);
             } finally {
                 delete pendingDwellTimers[stationId];
                 await removePendingDwellTimer(stationId);
             }
         }, settings.dwellTimeMs);
     } else if (eventType === Location.GeofencingEventType.Exit) {
-        console.log(`Exited geofence: ${stationId}`);
+        logger.info('Exited geofence');
 
         // User left before dwell time expired - cancel the pending notification
         if (pendingDwellTimers[stationId]) {
             clearTimeout(pendingDwellTimers[stationId]);
             delete pendingDwellTimers[stationId];
-            console.log(`Cancelled pending notification for: ${stationId}`);
+            logger.info('Cancelled pending notification');
         }
         // Always remove persisted timer on exit
         await removePendingDwellTimer(stationId);
@@ -174,19 +175,19 @@ export default function App() {
             // Request permissions
             const notificationGranted = await requestNotificationPermissions();
             if (!notificationGranted) {
-                console.warn('Notification permission denied');
+                logger.warn('Notification permission denied');
             }
 
             const foregroundGranted = await requestForegroundPermissions();
             if (!foregroundGranted) {
-                console.warn('Foreground location permission denied');
+                logger.warn('Foreground location permission denied');
                 setScreen('home');
                 return;
             }
 
             const backgroundGranted = await requestBackgroundPermissions();
             if (!backgroundGranted) {
-                console.warn('Background location permission denied');
+                logger.warn('Background location permission denied');
             }
 
             // Start geofencing with saved stations
@@ -197,7 +198,7 @@ export default function App() {
 
             setScreen('home');
         } catch (error) {
-            console.error('Error initializing app:', error);
+            logger.error('Error initializing app:', error);
             setScreen('home');
         }
     }, []);
@@ -205,6 +206,12 @@ export default function App() {
     useEffect(() => {
         initializeApp();
     }, [initializeApp]);
+
+    useEffect(() => {
+        if (!IS_NON_PROD && screen === 'debug') {
+            setScreen('settings');
+        }
+    }, [screen]);
 
     /**
      * Handle completion of station selection during onboarding.
@@ -239,7 +246,7 @@ export default function App() {
         // Request permissions
         const notificationGranted = await requestNotificationPermissions();
         if (!notificationGranted) {
-            console.warn('Notification permission denied');
+            logger.warn('Notification permission denied');
         }
 
         const foregroundGranted = await requestForegroundPermissions();
@@ -282,7 +289,7 @@ export default function App() {
         ) {
             const selectedStations = await getSelectedStations();
             await startGeofencing(selectedStations);
-            console.log(
+            logger.info(
                 `Restarted geofencing with new radius: ${settings.geofenceRadiusMeters}m`
             );
         }
@@ -308,6 +315,9 @@ export default function App() {
      * Navigate to debug screen.
      */
     const handleOpenDebug = () => {
+        if (!IS_NON_PROD) {
+            return;
+        }
         setScreen('debug');
     };
 
@@ -379,7 +389,7 @@ export default function App() {
     }
 
     // Render debug screen
-    if (screen === 'debug') {
+    if (screen === 'debug' && IS_NON_PROD) {
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" />

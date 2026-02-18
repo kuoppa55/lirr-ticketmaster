@@ -9,6 +9,7 @@ import { Alert, Platform } from 'react-native';
 import { GEOFENCING_TASK_NAME } from '../constants';
 import { getStationsForGeofencing } from '../data/stations';
 import { getUserSettings } from './storage';
+import { logger } from '../utils/logger';
 
 /**
  * Request foreground location permissions.
@@ -89,7 +90,7 @@ export async function startGeofencing(selectedStationIds) {
         // Verify background permissions
         const { status } = await Location.getBackgroundPermissionsAsync();
         if (status !== 'granted') {
-            console.warn('Background location permission not granted');
+            logger.warn('Background location permission not granted');
             return false;
         }
 
@@ -106,17 +107,17 @@ export async function startGeofencing(selectedStationIds) {
         );
 
         if (regions.length === 0) {
-            console.warn('No stations to monitor');
+            logger.warn('No stations to monitor');
             return false;
         }
 
         // Start geofencing
         await Location.startGeofencingAsync(GEOFENCING_TASK_NAME, regions);
 
-        console.log(`Started geofencing for ${regions.length} stations`);
+        logger.info(`Started geofencing for ${regions.length} stations`);
         return true;
     } catch (error) {
-        console.error('Error starting geofencing:', error);
+        logger.error('Error starting geofencing:', error);
         return false;
     }
 }
@@ -135,12 +136,12 @@ export async function stopGeofencing() {
 
         if (isRegistered) {
             await Location.stopGeofencingAsync(GEOFENCING_TASK_NAME);
-            console.log('Stopped geofencing');
+            logger.info('Stopped geofencing');
         }
 
         return true;
     } catch (error) {
-        console.error('Error stopping geofencing:', error);
+        logger.error('Error stopping geofencing:', error);
         return false;
     }
 }
@@ -155,7 +156,7 @@ export async function isGeofencingActive() {
     try {
         return await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK_NAME);
     } catch (error) {
-        console.error('Error checking geofencing status:', error);
+        logger.error('Error checking geofencing status:', error);
         return false;
     }
 }
@@ -178,7 +179,7 @@ export async function getRegisteredRegions() {
         );
         return taskOptions?.regions || [];
     } catch (error) {
-        console.error('Error getting registered regions:', error);
+        logger.error('Error getting registered regions:', error);
         return [];
     }
 }

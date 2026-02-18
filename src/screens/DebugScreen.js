@@ -16,6 +16,7 @@ import {
 import { useDebugState } from '../hooks/useDebugState';
 import { formatDistance } from '../utils/geo';
 import { COLORS, LED_GLOW, FONTS } from '../theme/colors';
+import { IS_NON_PROD } from '../config/env';
 
 /**
  * Format timestamp for display.
@@ -100,6 +101,18 @@ function ProgressBar({ progress }) {
  *     onBack: Callback to navigate back to home screen.
  */
 export default function DebugScreen({ onBack }) {
+    if (!IS_NON_PROD) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>
+                        Debug tools are unavailable in production.
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     const {
         location,
         locationError,

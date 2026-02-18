@@ -3,6 +3,8 @@
  * Handles metric/imperial conversions and display formatting.
  */
 
+import { SETTINGS_LIMITS } from '../constants';
+
 const METERS_PER_FOOT = 0.3048;
 const FEET_PER_MILE = 5280;
 
@@ -113,7 +115,14 @@ export function parseRadiusInput(text, useMetric = false) {
     if (isNaN(value) || value <= 0) {
         return NaN;
     }
-    return useMetric ? value : feetToMeters(value);
+    const meters = useMetric ? value : feetToMeters(value);
+    if (
+        meters < SETTINGS_LIMITS.geofenceRadiusMeters.min ||
+        meters > SETTINGS_LIMITS.geofenceRadiusMeters.max
+    ) {
+        return NaN;
+    }
+    return meters;
 }
 
 /**
@@ -126,10 +135,18 @@ export function parseRadiusInput(text, useMetric = false) {
  * Returns:
  *     Duration in milliseconds, or NaN if input is invalid.
  */
-export function parseDurationInput(text, unit = 'minutes') {
+export function parseDurationInput(
+    text,
+    unit = 'minutes',
+    { minMs = 1, maxMs = Number.MAX_SAFE_INTEGER } = {}
+) {
     const value = parseFloat(text);
     if (isNaN(value) || value <= 0) {
         return NaN;
     }
-    return unit === 'seconds' ? value * 1000 : value * 60000;
+    const duration = unit === 'seconds' ? value * 1000 : value * 60000;
+    if (duration < minMs || duration > maxMs) {
+        return NaN;
+    }
+    return duration;
 }

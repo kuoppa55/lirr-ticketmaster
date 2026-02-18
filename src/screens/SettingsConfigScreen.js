@@ -15,7 +15,12 @@ import {
 } from 'react-native';
 
 import PresetChips from '../components/PresetChips';
-import { RADIUS_PRESETS, DWELL_PRESETS, COOLDOWN_PRESETS } from '../constants';
+import {
+    RADIUS_PRESETS,
+    DWELL_PRESETS,
+    COOLDOWN_PRESETS,
+    SETTINGS_LIMITS,
+} from '../constants';
 import {
     formatDistance,
     formatDuration,
@@ -140,7 +145,12 @@ export default function SettingsConfigScreen({
                     }
                     customPlaceholder="Enter seconds"
                     customUnit="sec"
-                    parseCustom={(text) => parseDurationInput(text, 'seconds')}
+                    parseCustom={(text) =>
+                        parseDurationInput(text, 'seconds', {
+                            minMs: SETTINGS_LIMITS.dwellTimeMs.min,
+                            maxMs: SETTINGS_LIMITS.dwellTimeMs.max,
+                        })
+                    }
                 />
             </View>
 
@@ -162,7 +172,12 @@ export default function SettingsConfigScreen({
                     }
                     customPlaceholder="Enter minutes"
                     customUnit="min"
-                    parseCustom={(text) => parseDurationInput(text, 'minutes')}
+                    parseCustom={(text) =>
+                        parseDurationInput(text, 'minutes', {
+                            minMs: SETTINGS_LIMITS.cooldownMs.min,
+                            maxMs: SETTINGS_LIMITS.cooldownMs.max,
+                        })
+                    }
                 />
             </View>
 

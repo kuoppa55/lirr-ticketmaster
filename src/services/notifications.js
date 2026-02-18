@@ -6,6 +6,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { NOTIFICATION_CHANNEL_ID } from '../constants';
+import { IS_NON_PROD } from '../config/env';
+import { getUserSettings } from './storage';
 
 /**
  * Configure how notifications are handled when the app is in the foreground.
@@ -40,8 +42,7 @@ export async function setupNotificationChannel() {
                 vibrationPattern: [0, 250, 250, 250],
                 lightColor: '#0066CC',
                 lockscreenVisibility:
-                    Notifications.AndroidNotificationVisibility.PUBLIC,
-                bypassDnd: true,
+                    Notifications.AndroidNotificationVisibility.PRIVATE,
                 sound: 'default',
             }
         );
@@ -67,7 +68,7 @@ export async function requestNotificationPermissions() {
             allowAlert: true,
             allowBadge: true,
             allowSound: true,
-            allowCriticalAlerts: true,
+            allowCriticalAlerts: IS_NON_PROD,
         },
     });
 
@@ -84,17 +85,26 @@ export async function requestNotificationPermissions() {
  *     Promise that resolves with the notification identifier.
  */
 export async function sendTicketReminder(stationName) {
+    const settings = await getUserSettings();
+    const privacyMode = settings.notificationPrivacyMode === true;
+
+    const title = privacyMode
+        ? 'LIRR Ticket Reminder'
+        : 'Activate Your LIRR Ticket!';
+    const body = privacyMode
+        ? 'You may be approaching a station. Open the app to view details.'
+        : `You're at ${stationName}. Don't forget to activate your ticket before boarding!`;
+
     const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
-            title: '🎫 Activate Your LIRR Ticket!',
-            body: `You're at ${stationName}. Don't forget to activate your ticket before boarding!`,
+            title,
+            body,
             sound: 'default',
-            priority: Notifications.AndroidNotificationPriority.MAX,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
             ...(Platform.OS === 'android' && {
                 channelId: NOTIFICATION_CHANNEL_ID,
             }),
             data: {
-                stationName,
                 type: 'ticket-reminder',
             },
         },
@@ -113,10 +123,10 @@ export async function sendTicketReminder(stationName) {
 export async function sendTestNotification() {
     const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
-            title: '🧪 Test Notification',
+            title: 'Test Notification',
             body: 'Notifications are working correctly!',
             sound: 'default',
-            priority: Notifications.AndroidNotificationPriority.MAX,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
             ...(Platform.OS === 'android' && {
                 channelId: NOTIFICATION_CHANNEL_ID,
             }),

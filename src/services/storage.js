@@ -4,7 +4,8 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../constants';
+import { STORAGE_KEYS, DEFAULT_SETTINGS, SETTINGS_LIMITS } from '../constants';
+import { logger } from '../utils/logger';
 
 let cachedUserSettings = null;
 let cachedSelectedStations = null;
@@ -12,6 +13,46 @@ let pendingTimersCache = null;
 
 function getDefaultSettingsCopy() {
     return { ...DEFAULT_SETTINGS };
+}
+
+function clamp(value, min, max, fallback) {
+    if (!Number.isFinite(value)) {
+        return fallback;
+    }
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+function sanitizeSettings(rawSettings = {}) {
+    const merged = {
+        ...DEFAULT_SETTINGS,
+        ...rawSettings,
+    };
+
+    return {
+        ...merged,
+        geofenceRadiusMeters: clamp(
+            Number(merged.geofenceRadiusMeters),
+            SETTINGS_LIMITS.geofenceRadiusMeters.min,
+            SETTINGS_LIMITS.geofenceRadiusMeters.max,
+            DEFAULT_SETTINGS.geofenceRadiusMeters
+        ),
+        dwellTimeMs: clamp(
+            Number(merged.dwellTimeMs),
+            SETTINGS_LIMITS.dwellTimeMs.min,
+            SETTINGS_LIMITS.dwellTimeMs.max,
+            DEFAULT_SETTINGS.dwellTimeMs
+        ),
+        cooldownMs: clamp(
+            Number(merged.cooldownMs),
+            SETTINGS_LIMITS.cooldownMs.min,
+            SETTINGS_LIMITS.cooldownMs.max,
+            DEFAULT_SETTINGS.cooldownMs
+        ),
+        useMetric: Boolean(merged.useMetric),
+        notificationPrivacyMode: Boolean(merged.notificationPrivacyMode),
+    };
 }
 
 function filterActiveTimers(timers) {
@@ -41,16 +82,13 @@ export async function getUserSettings() {
     try {
         const data = await AsyncStorage.getItem(STORAGE_KEYS.USER_SETTINGS);
         if (data) {
-            cachedUserSettings = {
-                ...DEFAULT_SETTINGS,
-                ...JSON.parse(data),
-            };
+            cachedUserSettings = sanitizeSettings(JSON.parse(data));
             return { ...cachedUserSettings };
         }
         cachedUserSettings = getDefaultSettingsCopy();
         return { ...cachedUserSettings };
     } catch (error) {
-        console.error('Error loading user settings:', error);
+        logger.error('Error loading user settings:', error);
         cachedUserSettings = getDefaultSettingsCopy();
         return { ...cachedUserSettings };
     }
@@ -67,10 +105,7 @@ export async function getUserSettings() {
  */
 export async function saveUserSettings(settings) {
     try {
-        const mergedSettings = {
-            ...DEFAULT_SETTINGS,
-            ...settings,
-        };
+        const mergedSettings = sanitizeSettings(settings);
         await AsyncStorage.setItem(
             STORAGE_KEYS.USER_SETTINGS,
             JSON.stringify(mergedSettings)
@@ -78,7 +113,7 @@ export async function saveUserSettings(settings) {
         cachedUserSettings = mergedSettings;
         return true;
     } catch (error) {
-        console.error('Error saving user settings:', error);
+        logger.error('Error saving user settings:', error);
         return false;
     }
 }
@@ -102,7 +137,7 @@ export async function saveSelectedStations(stationIds) {
         cachedSelectedStations = [...normalized];
         return true;
     } catch (error) {
-        console.error('Error saving selected stations:', error);
+        logger.error('Error saving selected stations:', error);
         return false;
     }
 }
@@ -127,7 +162,7 @@ export async function getSelectedStations() {
         cachedSelectedStations = [];
         return [];
     } catch (error) {
-        console.error('Error loading selected stations:', error);
+        logger.error('Error loading selected stations:', error);
         return [];
     }
 }
@@ -145,7 +180,7 @@ export async function hasCompletedOnboarding() {
         );
         return value === 'true';
     } catch (error) {
-        console.error('Error checking onboarding status:', error);
+        logger.error('Error checking onboarding status:', error);
         return false;
     }
 }
@@ -161,7 +196,7 @@ export async function setOnboardingComplete() {
         await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
         return true;
     } catch (error) {
-        console.error('Error setting onboarding complete:', error);
+        logger.error('Error setting onboarding complete:', error);
         return false;
     }
 }
@@ -182,7 +217,7 @@ export async function getLastNotificationTime() {
         }
         return null;
     } catch (error) {
-        console.error('Error getting last notification time:', error);
+        logger.error('Error getting last notification time:', error);
         return null;
     }
 }
@@ -204,7 +239,7 @@ export async function setLastNotificationTime(timestamp) {
         );
         return true;
     } catch (error) {
-        console.error('Error setting last notification time:', error);
+        logger.error('Error setting last notification time:', error);
         return false;
     }
 }
@@ -227,7 +262,7 @@ export async function isInCooldown() {
         const elapsed = Date.now() - lastTime;
         return elapsed < settings.cooldownMs;
     } catch (error) {
-        console.error('Error checking cooldown:', error);
+        logger.error('Error checking cooldown:', error);
         return false;
     }
 }
@@ -251,7 +286,7 @@ export async function getRemainingCooldown() {
         const remaining = settings.cooldownMs - elapsed;
         return remaining > 0 ? remaining : 0;
     } catch (error) {
-        console.error('Error getting remaining cooldown:', error);
+        logger.error('Error getting remaining cooldown:', error);
         return 0;
     }
 }
@@ -286,7 +321,7 @@ export async function addPendingDwellTimer(stationId, stationName) {
         );
         return timer;
     } catch (error) {
-        console.error('Error adding pending dwell timer:', error);
+        logger.error('Error adding pending dwell timer:', error);
         return null;
     }
 }
@@ -313,7 +348,7 @@ export async function removePendingDwellTimer(stationId) {
         }
         return true;
     } catch (error) {
-        console.error('Error removing pending dwell timer:', error);
+        logger.error('Error removing pending dwell timer:', error);
         return false;
     }
 }
@@ -361,7 +396,7 @@ export async function getPendingDwellTimers() {
 
         return activeTimers;
     } catch (error) {
-        console.error('Error getting pending dwell timers:', error);
+        logger.error('Error getting pending dwell timers:', error);
         return {};
     }
 }
@@ -378,7 +413,7 @@ export async function clearPendingDwellTimers() {
         pendingTimersCache = {};
         return true;
     } catch (error) {
-        console.error('Error clearing pending dwell timers:', error);
+        logger.error('Error clearing pending dwell timers:', error);
         return false;
     }
 }
@@ -404,7 +439,7 @@ export async function clearAllData() {
         pendingTimersCache = {};
         return true;
     } catch (error) {
-        console.error('Error clearing data:', error);
+        logger.error('Error clearing data:', error);
         return false;
     }
 }
