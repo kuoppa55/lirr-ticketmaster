@@ -983,6 +983,17 @@ export const BRANCH_DEFINITIONS = [
     },
 ];
 
+const MAJOR_JUNCTION_SET = new Set(MAJOR_JUNCTIONS);
+const STATION_BY_ID = new Map(
+    LIRR_STATIONS.map((station) => [station.identifier, station])
+);
+const BRANCH_BY_NAME = new Map(
+    BRANCH_DEFINITIONS.map((branch) => [branch.name, branch])
+);
+const MAJOR_STATIONS = MAJOR_JUNCTIONS
+    .map((identifier) => STATION_BY_ID.get(identifier))
+    .filter(Boolean);
+
 /**
  * Get branch names in display order.
  *
@@ -1003,10 +1014,10 @@ export function getBranches() {
  *     Array of station objects in branch display order.
  */
 export function getStationsByBranch(branch) {
-    const def = BRANCH_DEFINITIONS.find((b) => b.name === branch);
+    const def = BRANCH_BY_NAME.get(branch);
     if (!def) return [];
     return def.stations
-        .map((id) => LIRR_STATIONS.find((s) => s.identifier === id))
+        .map((id) => STATION_BY_ID.get(id))
         .filter(Boolean);
 }
 
@@ -1062,30 +1073,39 @@ export function getStationsForGeofencing(selectedIds, radius) {
  *     Array of station objects.
  */
 export function getStationsForPlatform(selectedIds) {
-    // Always include major junctions
-    const majorStations = LIRR_STATIONS.filter((s) =>
-        MAJOR_JUNCTIONS.includes(s.identifier)
-    );
+    const selectedIdSet = new Set(selectedIds);
 
     // Get user-selected stations (excluding major junctions)
-    const userSelectedStations = LIRR_STATIONS.filter(
-        (s) =>
-            selectedIds.includes(s.identifier) &&
-            !MAJOR_JUNCTIONS.includes(s.identifier)
+    const userSelectedStations = LIRR_STATIONS.filter((station) =>
+        selectedIdSet.has(station.identifier) &&
+        !MAJOR_JUNCTION_SET.has(station.identifier)
     );
 
     if (Platform.OS === 'ios') {
         // iOS limit: 20 regions total
-        const remainingSlots = IOS_MAX_REGIONS - majorStations.length;
+        const remainingSlots = IOS_MAX_REGIONS - MAJOR_STATIONS.length;
         const limitedUserStations = userSelectedStations.slice(
             0,
             remainingSlots
         );
-        return [...majorStations, ...limitedUserStations];
+        return [...MAJOR_STATIONS, ...limitedUserStations];
     }
 
     // Android: return all selected + major junctions
-    return [...majorStations, ...userSelectedStations];
+    return [...MAJOR_STATIONS, ...userSelectedStations];
+}
+
+/**
+ * Resolve a list of station IDs into station objects.
+ *
+ * Args:
+ *     ids: Array of station identifiers.
+ *
+ * Returns:
+ *     Array of station objects (missing IDs are ignored).
+ */
+export function getStationsByIds(ids) {
+    return ids.map((id) => STATION_BY_ID.get(id)).filter(Boolean);
 }
 
 /**
@@ -1098,7 +1118,7 @@ export function getStationsForPlatform(selectedIds) {
  *     Station object or undefined if not found.
  */
 export function findStationById(identifier) {
-    return LIRR_STATIONS.find((s) => s.identifier === identifier);
+    return STATION_BY_ID.get(identifier);
 }
 
 /**

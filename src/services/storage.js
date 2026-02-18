@@ -6,6 +6,27 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../constants';
 
+let cachedUserSettings = null;
+let cachedSelectedStations = null;
+let pendingTimersCache = null;
+
+function getDefaultSettingsCopy() {
+    return { ...DEFAULT_SETTINGS };
+}
+
+function filterActiveTimers(timers) {
+    const now = Date.now();
+    const activeTimers = {};
+
+    for (const [stationId, timer] of Object.entries(timers)) {
+        if (timer.expiresAt > now) {
+            activeTimers[stationId] = timer;
+        }
+    }
+
+    return activeTimers;
+}
+
 /**
  * Get user settings, merging with defaults for any missing keys.
  *
@@ -13,15 +34,25 @@ import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../constants';
  *     Settings object with all keys guaranteed.
  */
 export async function getUserSettings() {
+    if (cachedUserSettings) {
+        return { ...cachedUserSettings };
+    }
+
     try {
         const data = await AsyncStorage.getItem(STORAGE_KEYS.USER_SETTINGS);
         if (data) {
-            return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
+            cachedUserSettings = {
+                ...DEFAULT_SETTINGS,
+                ...JSON.parse(data),
+            };
+            return { ...cachedUserSettings };
         }
-        return { ...DEFAULT_SETTINGS };
+        cachedUserSettings = getDefaultSettingsCopy();
+        return { ...cachedUserSettings };
     } catch (error) {
         console.error('Error loading user settings:', error);
-        return { ...DEFAULT_SETTINGS };
+        cachedUserSettings = getDefaultSettingsCopy();
+        return { ...cachedUserSettings };
     }
 }
 
@@ -36,10 +67,15 @@ export async function getUserSettings() {
  */
 export async function saveUserSettings(settings) {
     try {
+        const mergedSettings = {
+            ...DEFAULT_SETTINGS,
+            ...settings,
+        };
         await AsyncStorage.setItem(
             STORAGE_KEYS.USER_SETTINGS,
-            JSON.stringify(settings)
+            JSON.stringify(mergedSettings)
         );
+        cachedUserSettings = mergedSettings;
         return true;
     } catch (error) {
         console.error('Error saving user settings:', error);
@@ -58,10 +94,12 @@ export async function saveUserSettings(settings) {
  */
 export async function saveSelectedStations(stationIds) {
     try {
+        const normalized = Array.isArray(stationIds) ? stationIds : [];
         await AsyncStorage.setItem(
             STORAGE_KEYS.SELECTED_STATIONS,
-            JSON.stringify(stationIds)
+            JSON.stringify(normalized)
         );
+        cachedSelectedStations = [...normalized];
         return true;
     } catch (error) {
         console.error('Error saving selected stations:', error);
@@ -76,11 +114,17 @@ export async function saveSelectedStations(stationIds) {
  *     Array of station identifiers, or empty array if none saved.
  */
 export async function getSelectedStations() {
+    if (cachedSelectedStations) {
+        return [...cachedSelectedStations];
+    }
+
     try {
         const data = await AsyncStorage.getItem(STORAGE_KEYS.SELECTED_STATIONS);
         if (data) {
-            return JSON.parse(data);
+            cachedSelectedStations = JSON.parse(data);
+            return [...cachedSelectedStations];
         }
+        cachedSelectedStations = [];
         return [];
     } catch (error) {
         console.error('Error loading selected stations:', error);
@@ -235,6 +279,7 @@ export async function addPendingDwellTimer(stationId, stationName) {
             expiresAt: now + settings.dwellTimeMs,
         };
         timers[stationId] = timer;
+        pendingTimersCache = timers;
         await AsyncStorage.setItem(
             STORAGE_KEYS.PENDING_DWELL_TIMERS,
             JSON.stringify(timers)
@@ -260,6 +305,7 @@ export async function removePendingDwellTimer(stationId) {
         const timers = await getPendingDwellTimers();
         if (timers[stationId]) {
             delete timers[stationId];
+            pendingTimersCache = timers;
             await AsyncStorage.setItem(
                 STORAGE_KEYS.PENDING_DWELL_TIMERS,
                 JSON.stringify(timers)
@@ -279,22 +325,31 @@ export async function removePendingDwellTimer(stationId) {
  *     Object mapping stationId to timer objects (only non-expired).
  */
 export async function getPendingDwellTimers() {
+    if (pendingTimersCache) {
+        const activeTimers = filterActiveTimers(pendingTimersCache);
+        if (
+            Object.keys(activeTimers).length !==
+            Object.keys(pendingTimersCache).length
+        ) {
+            pendingTimersCache = activeTimers;
+            await AsyncStorage.setItem(
+                STORAGE_KEYS.PENDING_DWELL_TIMERS,
+                JSON.stringify(activeTimers)
+            );
+        }
+        return pendingTimersCache;
+    }
+
     try {
         const data = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_DWELL_TIMERS);
         if (!data) {
+            pendingTimersCache = {};
             return {};
         }
 
         const timers = JSON.parse(data);
-        const now = Date.now();
-        const activeTimers = {};
-
-        // Filter out expired timers
-        for (const [stationId, timer] of Object.entries(timers)) {
-            if (timer.expiresAt > now) {
-                activeTimers[stationId] = timer;
-            }
-        }
+        const activeTimers = filterActiveTimers(timers);
+        pendingTimersCache = activeTimers;
 
         // Clean up expired timers in storage if any were removed
         if (Object.keys(activeTimers).length !== Object.keys(timers).length) {
@@ -320,6 +375,7 @@ export async function getPendingDwellTimers() {
 export async function clearPendingDwellTimers() {
     try {
         await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_DWELL_TIMERS);
+        pendingTimersCache = {};
         return true;
     } catch (error) {
         console.error('Error clearing pending dwell timers:', error);
@@ -343,6 +399,9 @@ export async function clearAllData() {
             STORAGE_KEYS.PENDING_DWELL_TIMERS,
             STORAGE_KEYS.USER_SETTINGS,
         ]);
+        cachedUserSettings = null;
+        cachedSelectedStations = null;
+        pendingTimersCache = {};
         return true;
     } catch (error) {
         console.error('Error clearing data:', error);

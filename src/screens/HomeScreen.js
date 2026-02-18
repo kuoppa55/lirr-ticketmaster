@@ -6,7 +6,13 @@
  * and permission status dots at the bottom.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+    useState,
+    useEffect,
+    useCallback,
+    useRef,
+    useMemo,
+} from 'react';
 import {
     View,
     Text,
@@ -16,7 +22,7 @@ import {
     Alert,
     ScrollView,
     RefreshControl,
-    Dimensions,
+    useWindowDimensions,
 } from 'react-native';
 import * as Location from 'expo-location';
 import {
@@ -53,14 +59,24 @@ export default function HomeScreen({ onOpenSettings }) {
         background: false,
     });
     const [stationCount, setStationCount] = useState(0);
+    const [selectedStationIds, setSelectedStationIds] = useState([]);
     const [cooldownRemaining, setCooldownRemaining] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
     const [location, setLocation] = useState(null);
     const [useMetric, setUseMetric] = useState(false);
+    const { width: screenWidth } = useWindowDimensions();
+
     const locationSubRef = useRef(null);
 
-    const { heading, available: compassAvailable } = useCompass(isActive);
-    const nearestStations = useNearestStations(location, 5);
+    const { heading, available: compassAvailable } = useCompass(isActive, {
+        minDeltaDeg: 3,
+        minIntervalMs: 120,
+    });
+    const nearestStations = useNearestStations({
+        location,
+        monitoredStationIds: selectedStationIds,
+        maxCount: 5,
+    });
 
     const loadStatus = useCallback(async () => {
         const active = await isGeofencingActive();
@@ -70,6 +86,7 @@ export default function HomeScreen({ onOpenSettings }) {
         setPermissions(perms);
 
         const selected = await getSelectedStations();
+        setSelectedStationIds(selected);
         const totalCount = MAJOR_JUNCTIONS.length + selected.length;
         setStationCount(totalCount);
 
@@ -186,10 +203,9 @@ export default function HomeScreen({ onOpenSettings }) {
     const cooldownText = formatCooldown(cooldownRemaining);
     const showCompass = isActive && compassAvailable && location;
 
-    const screenWidth = Dimensions.get('window').width;
     const compassSize = Math.min(screenWidth - 40, 340);
 
-    const getMarqueeText = () => {
+    const marqueeText = useMemo(() => {
         if (!isActive) {
             return '  MONITORING PAUSED  ---  TAP BUTTON TO START  ---  LIRR TICKET REMINDER  ';
         }
@@ -198,12 +214,13 @@ export default function HomeScreen({ onOpenSettings }) {
         }
         const nearest = nearestStations[0];
         const next = nearestStations.length > 1 ? nearestStations[1] : null;
-        const dist = formatDistance(nearest.distance, useMetric);
+        const bucketedDistanceMeters = Math.round(nearest.distance / 50) * 50;
+        const dist = formatDistance(bucketedDistanceMeters, useMetric);
         if (next) {
             return `  NOW APPROACHING: ${nearest.name.toUpperCase()} (${dist})  ---  NEXT STOP: ${next.name.toUpperCase()}  ---  ACTIVATE YOUR TICKET  `;
         }
         return `  NOW APPROACHING: ${nearest.name.toUpperCase()} (${dist})  ---  ACTIVATE YOUR TICKET  `;
-    };
+    }, [isActive, nearestStations, useMetric]);
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -221,21 +238,21 @@ export default function HomeScreen({ onOpenSettings }) {
                 {/* Header */}
                 <View style={styles.header}>
                     <View style={styles.titleBox}>
-                        <LEDText text="LIRR" style={styles.titleLarge} flicker={true} />
-                        <LEDText text="REMINDER" style={styles.titleSmall} flicker={true} />
+                        <LEDText text="LIRR" style={styles.titleLarge} flicker={false} />
+                        <LEDText text="REMINDER" style={styles.titleSmall} flicker={false} />
                     </View>
                     <TouchableOpacity
                         style={styles.settingsBox}
                         onPress={onOpenSettings}
                     >
-                        <LEDText text="SETTINGS" style={styles.settingsLabel} flicker={true} />
+                        <LEDText text="SETTINGS" style={styles.settingsLabel} flicker={false} />
                     </TouchableOpacity>
                 </View>
 
                 {/* Scrolling marquee */}
                 <View style={styles.marqueeWrapper}>
                     <LEDText
-                        text={getMarqueeText()}
+                        text={marqueeText}
                         style={styles.marqueeText}
                         scroll={true}
                         flicker={isActive}

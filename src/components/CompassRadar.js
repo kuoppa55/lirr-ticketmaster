@@ -40,7 +40,7 @@ function getDotColor(ratio) {
  *     size: Diameter of the radar circle in pixels.
  *     useMetric: Whether to show distances in metric units.
  */
-export default function CompassRadar({
+function CompassRadar({
     heading,
     stations,
     size = 250,
@@ -268,4 +268,36 @@ const styles = StyleSheet.create({
         color: COLORS.muted,
         textAlign: 'center',
     },
+});
+
+function areStationsEqual(prevStations, nextStations) {
+    if (prevStations.length !== nextStations.length) {
+        return false;
+    }
+
+    for (let i = 0; i < prevStations.length; i += 1) {
+        const prev = prevStations[i];
+        const next = nextStations[i];
+        if (prev.identifier !== next.identifier) {
+            return false;
+        }
+        // Ignore tiny jitter to prevent repaint churn.
+        if (Math.abs(prev.distance - next.distance) >= 5) {
+            return false;
+        }
+        if (Math.abs(prev.bearing - next.bearing) >= 3) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+export default React.memo(CompassRadar, (prevProps, nextProps) => {
+    return (
+        Math.abs(prevProps.heading - nextProps.heading) < 1 &&
+        prevProps.size === nextProps.size &&
+        prevProps.useMetric === nextProps.useMetric &&
+        areStationsEqual(prevProps.stations, nextProps.stations)
+    );
 });

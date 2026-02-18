@@ -149,10 +149,14 @@ export default function StationSelectScreen({ onComplete, isOnboarding, onBack }
                 </Text>
                 <View style={styles.countContainer}>
                     {Platform.OS === 'ios' ? (
-                        <Text style={styles.countText}>
-                            {userCount} of {remainingSlots + userCount} custom
-                            stations selected ({totalCount} total)
-                        </Text>
+                        <>
+                            <Text style={styles.countText}>
+                                {userCount} of {remainingSlots + userCount} custom stations selected
+                            </Text>
+                            <Text style={styles.countSubtext}>
+                                {totalCount} stations total
+                            </Text>
+                        </>
                     ) : (
                         <Text style={styles.countText}>
                             {totalCount} stations monitored
@@ -241,6 +245,12 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.pixel,
         fontSize: 9,
         color: COLORS.primary,
+    },
+    countSubtext: {
+        fontFamily: FONTS.pixel,
+        fontSize: 9,
+        color: COLORS.primary,
+        marginTop: 4,
     },
     listContent: {
         paddingBottom: 100,
