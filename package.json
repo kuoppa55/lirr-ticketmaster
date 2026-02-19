@@ -12,6 +12,7 @@
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "test": "jest --runInBand",
+    "test:coverage": "jest --coverage --runInBand",
     "build:dev": "eas build --profile development --platform all",
     "build:dev:android": "eas build --profile development --platform android",
     "build:dev:ios": "eas build --profile development --platform ios",

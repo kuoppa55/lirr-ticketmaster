@@ -443,3 +443,25 @@ export async function clearAllData() {
         return false;
     }
 }
+
+/**
+ * Reconcile persisted runtime state on app launch.
+ * Currently ensures pending dwell timers are filtered for expiration and
+ * returns summary diagnostics for observability and debug screens.
+ *
+ * Returns:
+ *     Object with counts of active timers.
+ */
+export async function reconcileRuntimeState() {
+    try {
+        const activeTimers = await getPendingDwellTimers();
+        return {
+            activeTimerCount: Object.keys(activeTimers).length,
+        };
+    } catch (error) {
+        logger.error('Error reconciling runtime state:', error);
+        return {
+            activeTimerCount: 0,
+        };
+    }
+}

@@ -11,6 +11,7 @@ import { useSettings } from './src/hooks/useSettings';
 import { useAppFlow } from './src/hooks/useAppFlow';
 import { IS_NON_PROD } from './src/config/env';
 import { SCREENS } from './src/constants/screens';
+import { captureEvent } from './src/services/telemetry';
 
 import HomeScreen from './src/screens/HomeScreen';
 import StationSelectScreen from './src/screens/StationSelectScreen';
@@ -40,6 +41,10 @@ export default function App() {
     });
 
     const fontsReady = fontsLoaded || !!fontError;
+
+    React.useEffect(() => {
+        void captureEvent('app_session_started');
+    }, []);
 
     if (
         screen === SCREENS.LOADING ||

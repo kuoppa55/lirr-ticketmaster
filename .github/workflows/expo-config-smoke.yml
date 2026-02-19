@@ -1,0 +1,25 @@
+name: Expo Config Smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  expo-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Expo app config
+        run: npx expo config --type public

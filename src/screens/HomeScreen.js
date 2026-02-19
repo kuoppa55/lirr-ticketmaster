@@ -26,10 +26,10 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import {
-    isGeofencingActive,
     startGeofencing,
     stopGeofencing,
     checkPermissions,
+    reconcileGeofencingState,
 } from '../services/geofencing';
 import {
     getSelectedStations,
@@ -45,6 +45,7 @@ import { useCompass } from '../hooks/useCompass';
 import { useNearestStations } from '../hooks/useNearestStations';
 import { COLORS, FONTS, TYPOGRAPHY } from '../theme/colors';
 import { formatDistance } from '../utils/units';
+import { captureEvent } from '../services/telemetry';
 import { logger } from '../utils/logger';
 
 /**
@@ -80,9 +81,6 @@ export default function HomeScreen({ onOpenSettings }) {
     });
 
     const loadStatus = useCallback(async () => {
-        const active = await isGeofencingActive();
-        setIsActive(active);
-
         const perms = await checkPermissions();
         setPermissions(perms);
 
@@ -96,6 +94,16 @@ export default function HomeScreen({ onOpenSettings }) {
 
         const settings = await getUserSettings();
         setUseMetric(settings.useMetric ?? false);
+
+        const reconcileResult = await reconcileGeofencingState(selected);
+        setIsActive(reconcileResult.active);
+
+        if (!perms.background && reconcileResult.active) {
+            // Defensive fallback: if permissions are in flux, force-disable monitoring state.
+            await stopGeofencing();
+            setIsActive(false);
+            void captureEvent('home_forced_stop_missing_background_permission');
+        }
     }, []);
 
     useEffect(() => {

@@ -8,12 +8,15 @@ import { Platform } from 'react-native';
 import { NOTIFICATION_CHANNEL_ID } from '../constants';
 import { IS_NON_PROD } from '../config/env';
 import { getUserSettings } from './storage';
+import { captureEvent } from './telemetry';
+import { logger } from '../utils/logger';
 
 /**
  * Configure how notifications are handled when the app is in the foreground.
  * Sets notifications to show alert, play sound, and set badge.
  */
 export function configureNotificationHandler() {
+    void captureEvent('notifications_handler_configured');
     Notifications.setNotificationHandler({
         handleNotification: async () => ({
             shouldShowAlert: true,
@@ -32,6 +35,7 @@ export function configureNotificationHandler() {
  */
 export async function setupNotificationChannel() {
     if (Platform.OS === 'android') {
+        void captureEvent('notifications_channel_setup_attempt');
         await Notifications.setNotificationChannelAsync(
             NOTIFICATION_CHANNEL_ID,
             {
@@ -60,6 +64,7 @@ export async function requestNotificationPermissions() {
         await Notifications.getPermissionsAsync();
 
     if (existingStatus === 'granted') {
+        void captureEvent('notifications_permission_already_granted');
         return true;
     }
 
@@ -72,7 +77,9 @@ export async function requestNotificationPermissions() {
         },
     });
 
-    return status === 'granted';
+    const granted = status === 'granted';
+    void captureEvent('notifications_permission_prompt_result', { granted });
+    return granted;
 }
 
 /**
@@ -85,8 +92,14 @@ export async function requestNotificationPermissions() {
  *     Promise that resolves with the notification identifier.
  */
 export async function sendTicketReminder(stationName) {
-    const settings = await getUserSettings();
-    const privacyMode = settings.notificationPrivacyMode === true;
+    let privacyMode = false;
+    try {
+        const settings = await getUserSettings();
+        privacyMode = settings.notificationPrivacyMode === true;
+    } catch (error) {
+        logger.warn('Failed to load user settings for notification privacy mode', error);
+        void captureEvent('notifications_settings_load_failed');
+    }
 
     const title = privacyMode
         ? 'LIRR Ticket Reminder'
@@ -95,23 +108,32 @@ export async function sendTicketReminder(stationName) {
         ? 'You may be approaching a station. Open the app to view details.'
         : `You're at ${stationName}. Don't forget to activate your ticket before boarding!`;
 
-    const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-            title,
-            body,
-            sound: 'default',
-            priority: Notifications.AndroidNotificationPriority.HIGH,
-            ...(Platform.OS === 'android' && {
-                channelId: NOTIFICATION_CHANNEL_ID,
-            }),
-            data: {
-                type: 'ticket-reminder',
+    try {
+        const notificationId = await Notifications.scheduleNotificationAsync({
+            content: {
+                title,
+                body,
+                sound: 'default',
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+                ...(Platform.OS === 'android' && {
+                    channelId: NOTIFICATION_CHANNEL_ID,
+                }),
+                data: {
+                    type: 'ticket-reminder',
+                },
             },
-        },
-        trigger: null, // Immediate notification
-    });
+            trigger: null, // Immediate notification
+        });
 
-    return notificationId;
+        void captureEvent('ticket_reminder_sent', {
+            privacyMode,
+            stationName: privacyMode ? 'redacted' : stationName,
+        });
+        return notificationId;
+    } catch (error) {
+        void captureEvent('ticket_reminder_send_failed');
+        throw error;
+    }
 }
 
 /**

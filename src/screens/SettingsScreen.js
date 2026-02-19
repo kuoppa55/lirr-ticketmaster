@@ -10,13 +10,18 @@ import {
     ScrollView,
     StyleSheet,
     Alert,
+    Linking,
 } from 'react-native';
 
 import SettingsForm from '../components/SettingsForm';
 import { sendTestNotification, sendTicketReminder } from '../services/notifications';
 import { isInCooldown, setLastNotificationTime } from '../services/storage';
 import { COLORS, LED_GLOW, FONTS } from '../theme/colors';
-import { IS_NON_PROD } from '../config/env';
+import {
+    IS_NON_PROD,
+    EXPO_PUBLIC_PRIVACY_POLICY_URL,
+    EXPO_PUBLIC_TERMS_URL,
+} from '../config/env';
 
 export default function SettingsScreen({
     settings,
@@ -72,6 +77,14 @@ export default function SettingsScreen({
         }
     };
 
+    const openExternalLink = async (url, label) => {
+        try {
+            await Linking.openURL(url);
+        } catch {
+            Alert.alert('Error', `Unable to open ${label}.`);
+        }
+    };
+
     return (
         <ScrollView
             style={styles.container}
@@ -100,6 +113,20 @@ export default function SettingsScreen({
 
             <TouchableOpacity style={styles.actionButton} onPress={onEditStations}>
                 <Text style={styles.actionButtonText}>Edit Stations</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => openExternalLink(EXPO_PUBLIC_PRIVACY_POLICY_URL, 'Privacy Policy')}
+            >
+                <Text style={styles.actionButtonText}>Privacy Policy</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => openExternalLink(EXPO_PUBLIC_TERMS_URL, 'Terms of Use')}
+            >
+                <Text style={styles.actionButtonText}>Terms of Use</Text>
             </TouchableOpacity>
 
             {IS_NON_PROD && (

@@ -3,6 +3,7 @@
  */
 
 import { IS_PRODUCTION } from '../config/env';
+import { addBreadcrumb, captureError } from '../services/telemetry';
 
 function toErrorMeta(error) {
     if (!error) return undefined;
@@ -36,23 +37,32 @@ function write(method, message, meta) {
 
 export const logger = {
     debug(message, meta) {
+        addBreadcrumb(`debug:${message}`, meta);
         if (!IS_PRODUCTION) write('log', message, meta);
     },
     info(message, meta) {
+        addBreadcrumb(`info:${message}`, meta);
         if (!IS_PRODUCTION) write('log', message, meta);
     },
     warn(message, meta) {
+        addBreadcrumb(`warn:${message}`, meta);
         if (IS_PRODUCTION && meta instanceof Error) {
             write('warn', message, toErrorMeta(meta));
+            void captureError(message, meta);
             return;
         }
         write('warn', message, meta);
     },
     error(message, meta) {
+        addBreadcrumb(`error:${message}`, meta);
         if (IS_PRODUCTION && meta instanceof Error) {
             write('error', message, toErrorMeta(meta));
+            void captureError(message, meta);
             return;
         }
         write('error', message, meta);
+        if (meta instanceof Error) {
+            void captureError(message, meta);
+        }
     },
 };

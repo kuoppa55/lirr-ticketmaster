@@ -7,6 +7,7 @@ import {
     setOnboardingComplete,
     getSelectedStations,
     getUserSettings,
+    reconcileRuntimeState,
 } from '../services/storage';
 import {
     configureNotificationHandler,
@@ -17,8 +18,10 @@ import {
     requestForegroundPermissions,
     requestBackgroundPermissions,
     startGeofencing,
+    reconcileGeofencingState,
 } from '../services/geofencing';
 import { IS_NON_PROD } from '../config/env';
+import { captureEvent } from '../services/telemetry';
 import { logger } from '../utils/logger';
 
 function screenReducer(_state, action) {
@@ -44,11 +47,13 @@ export function useAppFlow({ settings, saveSettings }) {
         const notificationGranted = await requestNotificationPermissions();
         if (!notificationGranted) {
             logger.warn('Notification permission denied');
+            void captureEvent('permissions_notification_denied');
         }
 
         const foregroundGranted = await requestForegroundPermissions();
         if (!foregroundGranted) {
             logger.warn('Foreground location permission denied');
+            void captureEvent('permissions_foreground_denied');
             return { foregroundGranted: false, backgroundGranted: false };
         }
 
@@ -62,11 +67,13 @@ export function useAppFlow({ settings, saveSettings }) {
         const background = await requestBackgroundPermissions();
         if (!background.granted) {
             logger.warn('Background location permission denied');
+            void captureEvent('permissions_background_denied');
             return { foregroundGranted: true, backgroundGranted: false };
         }
 
         const selectedStations = await getSelectedStations();
-        await startGeofencing(selectedStations);
+        const started = await startGeofencing(selectedStations);
+        void captureEvent('geofencing_start_after_permission_flow', { started });
         return { foregroundGranted: true, backgroundGranted: true };
     }, []);
 
@@ -74,6 +81,8 @@ export function useAppFlow({ settings, saveSettings }) {
         try {
             configureNotificationHandler();
             await setupNotificationChannel();
+            const runtimeSummary = await reconcileRuntimeState();
+            void captureEvent('runtime_reconciled', runtimeSummary);
 
             const onboardingDone = await hasCompletedOnboarding();
 
@@ -86,8 +95,15 @@ export function useAppFlow({ settings, saveSettings }) {
             const currentSettings = await getUserSettings();
             setSavedRadiusMeters(currentSettings.geofenceRadiusMeters);
 
-            const permissionsResult =
-                await requestPermissionsAndStartGeofencing();
+            const selectedStations = await getSelectedStations();
+            const reconcileResult = await reconcileGeofencingState(selectedStations);
+            void captureEvent('geofencing_reconciled', reconcileResult);
+
+            let permissionsResult = { foregroundGranted: true, backgroundGranted: true };
+            if (!reconcileResult.active) {
+                permissionsResult = await requestPermissionsAndStartGeofencing();
+            }
+
             if (!permissionsResult.foregroundGranted) {
                 setScreen(SCREENS.HOME);
                 return;

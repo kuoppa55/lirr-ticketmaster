@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import { GEOFENCING_TASK_NAME } from '../constants';
 import { getStationsForGeofencing } from '../data/stations';
 import { getUserSettings } from './storage';
+import { captureEvent } from './telemetry';
 import { logger } from '../utils/logger';
 
 /**
@@ -20,6 +21,7 @@ import { logger } from '../utils/logger';
  */
 export async function requestForegroundPermissions() {
     const { status } = await Location.requestForegroundPermissionsAsync();
+    void captureEvent('permissions_foreground_result', { status });
     return status === 'granted';
 }
 
@@ -45,6 +47,7 @@ export async function requestBackgroundPermissions() {
         Platform.OS === 'android' && Platform.Version >= 30;
 
     const { status } = await Location.requestBackgroundPermissionsAsync();
+    void captureEvent('permissions_background_result', { status });
     return {
         granted: status === 'granted',
         needsAndroid11Rationale,
@@ -83,12 +86,18 @@ export async function startGeofencing(selectedStationIds) {
         // Verify background permissions
         const { status } = await Location.getBackgroundPermissionsAsync();
         if (status !== 'granted') {
-            logger.warn('Background location permission not granted');
+            logger.warn('Background location permission not granted', { status });
+            void captureEvent('geofencing_start_denied_permissions', { status });
             return false;
         }
 
         // Stop existing geofencing first
-        await stopGeofencing();
+        const stopped = await stopGeofencing();
+        if (!stopped) {
+            logger.warn('Failed to stop existing geofencing before restart');
+            void captureEvent('geofencing_restart_stop_failed');
+            return false;
+        }
 
         // Read radius from user settings
         const settings = await getUserSettings();
@@ -101,6 +110,7 @@ export async function startGeofencing(selectedStationIds) {
 
         if (regions.length === 0) {
             logger.warn('No stations to monitor');
+            void captureEvent('geofencing_start_no_regions');
             return false;
         }
 
@@ -108,9 +118,13 @@ export async function startGeofencing(selectedStationIds) {
         await Location.startGeofencingAsync(GEOFENCING_TASK_NAME, regions);
 
         logger.info(`Started geofencing for ${regions.length} stations`);
+        void captureEvent('geofencing_start_success', {
+            regionCount: regions.length,
+        });
         return true;
     } catch (error) {
         logger.error('Error starting geofencing:', error);
+        void captureEvent('geofencing_start_error');
         return false;
     }
 }
@@ -130,11 +144,16 @@ export async function stopGeofencing() {
         if (isRegistered) {
             await Location.stopGeofencingAsync(GEOFENCING_TASK_NAME);
             logger.info('Stopped geofencing');
+            void captureEvent('geofencing_stop_success');
+        } else {
+            logger.info('Geofencing stop skipped because task was not registered');
+            void captureEvent('geofencing_stop_noop');
         }
 
         return true;
     } catch (error) {
         logger.error('Error stopping geofencing:', error);
+        void captureEvent('geofencing_stop_error');
         return false;
     }
 }
@@ -150,6 +169,7 @@ export async function isGeofencingActive() {
         return await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK_NAME);
     } catch (error) {
         logger.error('Error checking geofencing status:', error);
+        void captureEvent('geofencing_check_active_error');
         return false;
     }
 }
@@ -173,6 +193,46 @@ export async function getRegisteredRegions() {
         return taskOptions?.regions || [];
     } catch (error) {
         logger.error('Error getting registered regions:', error);
+        void captureEvent('geofencing_get_regions_error');
         return [];
+    }
+}
+
+/**
+ * Reconcile runtime geofencing state on app launch/resume.
+ * Ensures revoked permissions cannot leave stale "active" state and
+ * attempts to restore monitoring when expected regions are missing.
+ *
+ * Returns:
+ *     Object with { active, reconciled, reason }.
+ */
+export async function reconcileGeofencingState(selectedStationIds) {
+    try {
+        const permissions = await checkPermissions();
+        if (!permissions.background) {
+            await stopGeofencing();
+            return {
+                active: false,
+                reconciled: true,
+                reason: 'background_permission_missing',
+            };
+        }
+
+        const active = await isGeofencingActive();
+        const regions = await getRegisteredRegions();
+
+        if (active && regions.length > 0) {
+            return { active: true, reconciled: true, reason: 'healthy' };
+        }
+
+        const started = await startGeofencing(selectedStationIds);
+        return {
+            active: started,
+            reconciled: true,
+            reason: started ? 'restarted' : 'restart_failed',
+        };
+    } catch (error) {
+        logger.error('Error reconciling geofencing state:', error);
+        return { active: false, reconciled: false, reason: 'error' };
     }
 }
