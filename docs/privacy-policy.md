@@ -31,4 +31,4 @@ The app sends reminder notifications when geofence and dwell criteria are met.
 - You can clear app data by uninstalling the app or via in-app reset/debug workflows where available.
 
 ## Contact
-For support or privacy questions, contact: support@example.com
+For support or privacy questions, contact: jameskuoppala@icloud.com
