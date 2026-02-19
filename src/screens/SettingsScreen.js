@@ -1,7 +1,5 @@
 /**
- * Full settings screen for LIRR Ticket Reminder App.
- * Accessible from the home screen. Contains settings config,
- * station editing, and debug tools.
+ * Settings screen from home.
  */
 
 import React, { useState } from 'react';
@@ -11,42 +9,15 @@ import {
     TouchableOpacity,
     ScrollView,
     StyleSheet,
-    Switch,
     Alert,
 } from 'react-native';
 
-import PresetChips from '../components/PresetChips';
-import {
-    RADIUS_PRESETS,
-    DWELL_PRESETS,
-    COOLDOWN_PRESETS,
-    SETTINGS_LIMITS,
-} from '../constants';
-import {
-    formatDistance,
-    formatDuration,
-    parseRadiusInput,
-    parseDurationInput,
-} from '../utils/units';
+import SettingsForm from '../components/SettingsForm';
 import { sendTestNotification, sendTicketReminder } from '../services/notifications';
-import {
-    isInCooldown,
-    setLastNotificationTime,
-} from '../services/storage';
+import { isInCooldown, setLastNotificationTime } from '../services/storage';
 import { COLORS, LED_GLOW, FONTS } from '../theme/colors';
 import { IS_NON_PROD } from '../config/env';
 
-/**
- * SettingsScreen component.
- *
- * Args:
- *     settings: Current settings object.
- *     onUpdateSetting: Callback to update a single setting (key, value).
- *     onSave: Callback when user saves settings.
- *     onBack: Callback to navigate back to home.
- *     onEditStations: Callback to navigate to station edit screen.
- *     onOpenDebug: Callback to navigate to debug screen.
- */
 export default function SettingsScreen({
     settings,
     onUpdateSetting,
@@ -56,14 +27,6 @@ export default function SettingsScreen({
     onOpenDebug,
 }) {
     const [showDebug, setShowDebug] = useState(false);
-    const {
-        geofenceRadiusMeters,
-        dwellTimeMs,
-        cooldownMs,
-        useMetric,
-        notificationPrivacyMode,
-    } =
-        settings;
 
     const handleSave = async () => {
         await onSave();
@@ -78,7 +41,7 @@ export default function SettingsScreen({
         try {
             await sendTestNotification();
             Alert.alert('Success', 'Test notification sent!');
-        } catch (error) {
+        } catch {
             Alert.alert('Error', 'Failed to send test notification.');
         }
     };
@@ -114,178 +77,33 @@ export default function SettingsScreen({
             style={styles.container}
             contentContainerStyle={styles.content}
         >
-            {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={onBack}
-                    style={styles.backButton}
-                >
+                <TouchableOpacity onPress={onBack} style={styles.backButton}>
                     <Text style={styles.backButtonText}>BACK</Text>
                 </TouchableOpacity>
                 <Text style={styles.title}>SETTINGS</Text>
                 <View style={styles.headerSpacer} />
             </View>
 
-            {/* Unit Toggle */}
-            <View style={styles.section}>
-                <View style={styles.unitToggleRow}>
-                    <Text style={styles.unitLabel}>Distance Units</Text>
-                    <View style={styles.unitSwitchRow}>
-                        <Text
-                            style={[
-                                styles.unitOption,
-                                !useMetric && styles.unitOptionActive,
-                            ]}
-                        >
-                            Imperial
-                        </Text>
-                        <Switch
-                            value={useMetric}
-                            onValueChange={(value) =>
-                                onUpdateSetting('useMetric', value)
-                            }
-                            trackColor={{
-                                false: COLORS.primary,
-                                true: COLORS.primary,
-                            }}
-                            thumbColor="#FFFFFF"
-                        />
-                        <Text
-                            style={[
-                                styles.unitOption,
-                                useMetric && styles.unitOptionActive,
-                            ]}
-                        >
-                            Metric
-                        </Text>
-                    </View>
-                </View>
-            </View>
+            <SettingsForm
+                settings={settings}
+                onUpdateSetting={onUpdateSetting}
+                radiusDescription="How close to a station before we start watching?"
+                dwellDescription="How long near a station before you get notified."
+                cooldownDescription="Minimum wait between notifications."
+                showNotificationPrivacy={true}
+            />
 
-            {/* Geofence Radius */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Geofence Radius</Text>
-                <Text style={styles.sectionDescription}>
-                    How close to a station before we start watching?
-                </Text>
-                <Text style={styles.currentValue}>
-                    Current: {formatDistance(geofenceRadiusMeters, useMetric)}
-                </Text>
-                <PresetChips
-                    presets={RADIUS_PRESETS}
-                    selectedValue={geofenceRadiusMeters}
-                    onSelect={(value) =>
-                        onUpdateSetting('geofenceRadiusMeters', value)
-                    }
-                    customPlaceholder={
-                        useMetric ? 'Enter meters' : 'Enter feet'
-                    }
-                    customUnit={useMetric ? 'm' : 'ft'}
-                    parseCustom={(text) => parseRadiusInput(text, useMetric)}
-                    useMetric={useMetric}
-                />
-            </View>
-
-            {/* Dwell Time */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Dwell Time</Text>
-                <Text style={styles.sectionDescription}>
-                    How long near a station before you get notified.
-                </Text>
-                <Text style={styles.currentValue}>
-                    Current: {formatDuration(dwellTimeMs)}
-                </Text>
-                <PresetChips
-                    presets={DWELL_PRESETS}
-                    selectedValue={dwellTimeMs}
-                    onSelect={(value) =>
-                        onUpdateSetting('dwellTimeMs', value)
-                    }
-                    customPlaceholder="Enter seconds"
-                    customUnit="sec"
-                    parseCustom={(text) =>
-                        parseDurationInput(text, 'seconds', {
-                            minMs: SETTINGS_LIMITS.dwellTimeMs.min,
-                            maxMs: SETTINGS_LIMITS.dwellTimeMs.max,
-                        })
-                    }
-                />
-            </View>
-
-            {/* Cooldown */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Notification Cooldown</Text>
-                <Text style={styles.sectionDescription}>
-                    Minimum wait between notifications.
-                </Text>
-                <Text style={styles.currentValue}>
-                    Current: {formatDuration(cooldownMs)}
-                </Text>
-                <PresetChips
-                    presets={COOLDOWN_PRESETS}
-                    selectedValue={cooldownMs}
-                    onSelect={(value) =>
-                        onUpdateSetting('cooldownMs', value)
-                    }
-                    customPlaceholder="Enter minutes"
-                    customUnit="min"
-                    parseCustom={(text) =>
-                        parseDurationInput(text, 'minutes', {
-                            minMs: SETTINGS_LIMITS.cooldownMs.min,
-                            maxMs: SETTINGS_LIMITS.cooldownMs.max,
-                        })
-                    }
-                />
-            </View>
-
-            {/* Notification Privacy */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Notification Privacy</Text>
-                <Text style={styles.sectionDescription}>
-                    Hide station names on lockscreen notifications.
-                </Text>
-                <View style={styles.unitSwitchRow}>
-                    <Text style={[styles.unitOption, !notificationPrivacyMode && styles.unitOptionActive]}>
-                        Off
-                    </Text>
-                    <Switch
-                        value={notificationPrivacyMode}
-                        onValueChange={(value) =>
-                            onUpdateSetting('notificationPrivacyMode', value)
-                        }
-                        trackColor={{
-                            false: COLORS.primary,
-                            true: COLORS.primary,
-                        }}
-                        thumbColor="#FFFFFF"
-                    />
-                    <Text style={[styles.unitOption, notificationPrivacyMode && styles.unitOptionActive]}>
-                        On
-                    </Text>
-                </View>
-            </View>
-
-            {/* Defaults note */}
-            <Text style={styles.defaultsNote}>
-                * indicates the recommended default
-            </Text>
-
-            {/* Save Button */}
             <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                 <Text style={styles.saveButtonText}>Save Settings</Text>
             </TouchableOpacity>
 
-            {/* Edit Stations */}
-            <TouchableOpacity
-                style={styles.actionButton}
-                onPress={onEditStations}
-            >
+            <TouchableOpacity style={styles.actionButton} onPress={onEditStations}>
                 <Text style={styles.actionButtonText}>Edit Stations</Text>
             </TouchableOpacity>
 
             {IS_NON_PROD && (
                 <>
-                    {/* Debug Tools */}
                     <TouchableOpacity
                         style={styles.debugToggle}
                         onPress={() => setShowDebug(!showDebug)}
@@ -368,64 +186,6 @@ const styles = StyleSheet.create({
     },
     headerSpacer: {
         width: 60,
-    },
-    section: {
-        backgroundColor: COLORS.background,
-        marginHorizontal: 16,
-        marginTop: 16,
-        borderRadius: 0,
-        borderWidth: 1,
-        borderColor: COLORS.primary,
-        padding: 16,
-    },
-    sectionTitle: {
-        fontSize: 14,
-        fontFamily: FONTS.pixel,
-        color: COLORS.primary,
-        letterSpacing: 1,
-        marginBottom: 6,
-    },
-    sectionDescription: {
-        fontSize: 14,
-        color: COLORS.secondary,
-        lineHeight: 20,
-        marginBottom: 8,
-    },
-    currentValue: {
-        fontFamily: FONTS.pixel,
-        fontSize: 9,
-        color: COLORS.primary,
-        marginBottom: 4,
-    },
-    unitToggleRow: {
-        alignItems: 'flex-start',
-    },
-    unitLabel: {
-        fontFamily: FONTS.pixel,
-        fontSize: 14,
-        color: COLORS.primary,
-    },
-    unitSwitchRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginTop: 10,
-    },
-    unitOption: {
-        fontFamily: FONTS.pixel,
-        fontSize: 9,
-        color: COLORS.muted,
-    },
-    unitOptionActive: {
-        color: COLORS.primary,
-    },
-    defaultsNote: {
-        fontFamily: FONTS.pixel,
-        fontSize: 8,
-        color: COLORS.muted,
-        textAlign: 'center',
-        marginTop: 16,
-        marginHorizontal: 16,
     },
     saveButton: {
         backgroundColor: COLORS.background,

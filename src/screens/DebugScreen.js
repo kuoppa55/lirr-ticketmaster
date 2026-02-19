@@ -2,7 +2,7 @@
  * Debug screen showing real-time location, geofence status, and notification state.
  */
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
     View,
     Text,
@@ -101,18 +101,6 @@ function ProgressBar({ progress }) {
  *     onBack: Callback to navigate back to home screen.
  */
 export default function DebugScreen({ onBack }) {
-    if (!IS_NON_PROD) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>
-                        Debug tools are unavailable in production.
-                    </Text>
-                </View>
-            </SafeAreaView>
-        );
-    }
-
     const {
         location,
         locationError,
@@ -129,20 +117,28 @@ export default function DebugScreen({ onBack }) {
         refresh,
     } = useDebugState();
 
+    if (!IS_NON_PROD) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <Text style={styles.loadingText}>
+                        Debug tools are unavailable in production.
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     // Calculate inside geofences
-    const insideGeofences = useMemo(
-        () => nearbyGeofences.filter((g) => g.isInside),
-        [nearbyGeofences]
-    );
+    const insideGeofences = nearbyGeofences.filter((g) => g.isInside);
 
     // Calculate nearby (but not inside) geofences, limited to 5
-    const nearbyNotInside = useMemo(
-        () => nearbyGeofences.filter((g) => !g.isInside).slice(0, 5),
-        [nearbyGeofences]
-    );
+    const nearbyNotInside = nearbyGeofences
+        .filter((g) => !g.isInside)
+        .slice(0, 5);
 
     // Calculate dwell timer display data
-    const dwellTimerData = useMemo(() => {
+    const dwellTimerData = (() => {
         const now = Date.now();
         return Object.values(pendingDwellTimers).map((timer) => {
             const remaining = Math.max(0, timer.expiresAt - now);
@@ -155,7 +151,7 @@ export default function DebugScreen({ onBack }) {
                 progress,
             };
         });
-    }, [pendingDwellTimers]);
+    })();
 
     // Check if config values are debug values
     const isDebugDwellTime = config.dwellTimeMs < 60000;

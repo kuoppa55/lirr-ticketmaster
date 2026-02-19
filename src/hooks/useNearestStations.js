@@ -76,6 +76,7 @@ export function useNearestStations({
             cancelled = true;
         };
     }, [
+        location,
         location?.latitude,
         location?.longitude,
         monitoredStations,

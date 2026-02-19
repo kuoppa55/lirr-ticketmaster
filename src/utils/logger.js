@@ -13,11 +13,25 @@ function toErrorMeta(error) {
 }
 
 function write(method, message, meta) {
-    if (meta === undefined) {
-        console[method](message);
+    const writeMessage = (fn) => {
+        if (meta === undefined) {
+            fn(message);
+            return;
+        }
+        fn(message, meta);
+    };
+
+    if (method === 'log') {
+        writeMessage(console.log);
         return;
     }
-    console[method](message, meta);
+    if (method === 'warn') {
+        writeMessage(console.warn);
+        return;
+    }
+    if (method === 'error') {
+        writeMessage(console.error);
+    }
 }
 
 export const logger = {
@@ -42,4 +56,3 @@ export const logger = {
         write('error', message, meta);
     },
 };
-

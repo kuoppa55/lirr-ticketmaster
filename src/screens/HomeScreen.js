@@ -45,6 +45,7 @@ import { useCompass } from '../hooks/useCompass';
 import { useNearestStations } from '../hooks/useNearestStations';
 import { COLORS, FONTS, TYPOGRAPHY } from '../theme/colors';
 import { formatDistance } from '../utils/units';
+import { logger } from '../utils/logger';
 
 /**
  * Home screen component.
@@ -141,7 +142,7 @@ export default function HomeScreen({ onOpenSettings }) {
                     sub.remove();
                 }
             } catch (error) {
-                console.warn('Location watch failed:', error.message);
+                logger.warn('Location watch failed:', error);
             }
         };
 

@@ -13,7 +13,7 @@ import {
     getSelectedStations,
     saveSelectedStations,
 } from '../services/storage';
-import { startGeofencing } from '../services/geofencing';
+import { logger } from '../utils/logger';
 
 /**
  * Custom hook for managing station selection.
@@ -25,22 +25,22 @@ export function useStationSelection() {
     const [selectedIds, setSelectedIds] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Load saved selections on mount
-    useEffect(() => {
-        loadSelections();
-    }, []);
-
     const loadSelections = useCallback(async () => {
         setLoading(true);
         try {
             const saved = await getSelectedStations();
             setSelectedIds(saved);
         } catch (error) {
-            console.error('Error loading selections:', error);
+            logger.error('Error loading selections:', error);
         } finally {
             setLoading(false);
         }
     }, []);
+
+    // Load saved selections on mount
+    useEffect(() => {
+        loadSelections();
+    }, [loadSelections]);
 
     /**
      * Toggle selection of a station.
@@ -154,18 +154,17 @@ export function useStationSelection() {
     }, [getUserSelectionCount]);
 
     /**
-     * Save current selections and restart geofencing.
+     * Save current selections.
      *
      * Returns:
-     *     True if save and restart successful.
+     *     True if save successful.
      */
-    const saveAndApply = useCallback(async () => {
+    const saveSelections = useCallback(async () => {
         try {
             await saveSelectedStations(selectedIds);
-            await startGeofencing(selectedIds);
             return true;
         } catch (error) {
-            console.error('Error saving selections:', error);
+            logger.error('Error saving selections:', error);
             return false;
         }
     }, [selectedIds]);
@@ -237,7 +236,8 @@ export function useStationSelection() {
         getUserSelectionCount,
         getTotalMonitoredCount,
         getRemainingSlots,
-        saveAndApply,
+        saveAndApply: saveSelections,
+        saveSelections,
         selectBranch,
         deselectBranch,
         clearUserSelections,

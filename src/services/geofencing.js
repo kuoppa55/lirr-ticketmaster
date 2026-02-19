@@ -5,7 +5,7 @@
 
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { GEOFENCING_TASK_NAME } from '../constants';
 import { getStationsForGeofencing } from '../data/stations';
 import { getUserSettings } from './storage';
@@ -25,10 +25,9 @@ export async function requestForegroundPermissions() {
 
 /**
  * Request background location permissions.
- * On Android 11+, shows an explanation alert before requesting.
  *
  * Returns:
- *     True if permissions granted, false otherwise.
+ *     Object: { granted, needsAndroid11Rationale }.
  */
 export async function requestBackgroundPermissions() {
     // Check if foreground permissions are already granted
@@ -38,24 +37,18 @@ export async function requestBackgroundPermissions() {
     if (foregroundStatus !== 'granted') {
         const granted = await requestForegroundPermissions();
         if (!granted) {
-            return false;
+            return { granted: false, needsAndroid11Rationale: false };
         }
     }
 
-    // On Android 11+, show explanation before requesting
-    if (Platform.OS === 'android' && Platform.Version >= 30) {
-        await new Promise((resolve) => {
-            Alert.alert(
-                'Background Location Required',
-                'To remind you to activate your ticket even when the app is closed, ' +
-                    'please select "Allow all the time" on the next screen.',
-                [{ text: 'Continue', onPress: resolve }]
-            );
-        });
-    }
+    const needsAndroid11Rationale =
+        Platform.OS === 'android' && Platform.Version >= 30;
 
     const { status } = await Location.requestBackgroundPermissionsAsync();
-    return status === 'granted';
+    return {
+        granted: status === 'granted',
+        needsAndroid11Rationale,
+    };
 }
 
 /**

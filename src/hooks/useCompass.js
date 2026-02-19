@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
+import { logger } from '../utils/logger';
 
 /**
  * Subscribe to compass heading updates.
@@ -86,7 +87,7 @@ export function useCompass(
                     sub.remove();
                 }
             } catch (error) {
-                console.warn('Compass not available:', error.message);
+                logger.warn('Compass not available:', error);
                 if (mounted) {
                     setAvailable(false);
                 }

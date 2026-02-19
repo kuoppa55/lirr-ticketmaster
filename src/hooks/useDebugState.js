@@ -14,7 +14,7 @@ import {
     getUserSettings,
 } from '../services/storage';
 import { findNearbyGeofences } from '../utils/geo';
-import { findStationById, LIRR_STATIONS } from '../data/stations';
+import { findStationById } from '../data/stations';
 import { DEFAULT_SETTINGS } from '../constants';
 import { logger } from '../utils/logger';
 
