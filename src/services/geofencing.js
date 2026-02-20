@@ -73,6 +73,39 @@ export async function checkPermissions() {
 }
 
 /**
+ * Poll permissions briefly to handle iOS permission propagation delays
+ * after system dialogs/settings transitions.
+ *
+ * Returns:
+ *     Object with { backgroundGranted, attemptsUsed }.
+ */
+export async function waitForBackgroundPermissionSync({
+    attempts = 3,
+    delayMs = 350,
+} = {}) {
+    const safeAttempts = Math.max(1, attempts);
+
+    for (let i = 1; i <= safeAttempts; i += 1) {
+        const permissions = await checkPermissions();
+        if (permissions.background) {
+            return {
+                backgroundGranted: true,
+                attemptsUsed: i,
+            };
+        }
+
+        if (i < safeAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+    }
+
+    return {
+        backgroundGranted: false,
+        attemptsUsed: safeAttempts,
+    };
+}
+
+/**
  * Start geofencing for the selected stations.
  *
  * Args:

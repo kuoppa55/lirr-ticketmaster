@@ -219,4 +219,63 @@ describe('geofencing service', () => {
             expect.any(Array)
         );
     });
+
+    test('waitForBackgroundPermissionSync returns immediately when granted', async () => {
+        const { geofencing, mocks } = setupGeofencingModule();
+        mocks.location.getForegroundPermissionsAsync.mockResolvedValue({
+            status: 'granted',
+        });
+        mocks.location.getBackgroundPermissionsAsync.mockResolvedValue({
+            status: 'granted',
+        });
+
+        const result = await geofencing.waitForBackgroundPermissionSync();
+
+        expect(result).toEqual({
+            backgroundGranted: true,
+            attemptsUsed: 1,
+        });
+    });
+
+    test('waitForBackgroundPermissionSync retries and then resolves granted', async () => {
+        const { geofencing, mocks } = setupGeofencingModule();
+        mocks.location.getForegroundPermissionsAsync.mockResolvedValue({
+            status: 'granted',
+        });
+        mocks.location.getBackgroundPermissionsAsync
+            .mockResolvedValueOnce({ status: 'denied' })
+            .mockResolvedValueOnce({ status: 'granted' });
+
+        const promise = geofencing.waitForBackgroundPermissionSync({
+            attempts: 3,
+            delayMs: 1,
+        });
+        const result = await promise;
+
+        expect(result).toEqual({
+            backgroundGranted: true,
+            attemptsUsed: 2,
+        });
+    });
+
+    test('waitForBackgroundPermissionSync returns false after exhausting retries', async () => {
+        const { geofencing, mocks } = setupGeofencingModule();
+        mocks.location.getForegroundPermissionsAsync.mockResolvedValue({
+            status: 'granted',
+        });
+        mocks.location.getBackgroundPermissionsAsync.mockResolvedValue({
+            status: 'denied',
+        });
+
+        const promise = geofencing.waitForBackgroundPermissionSync({
+            attempts: 3,
+            delayMs: 1,
+        });
+        const result = await promise;
+
+        expect(result).toEqual({
+            backgroundGranted: false,
+            attemptsUsed: 3,
+        });
+    });
 });

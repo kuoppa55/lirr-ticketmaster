@@ -23,6 +23,8 @@ import {
     ScrollView,
     RefreshControl,
     useWindowDimensions,
+    AppState,
+    Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
 import {
@@ -116,6 +118,19 @@ export default function HomeScreen({ onOpenSettings }) {
         return () => clearInterval(interval);
     }, [loadStatus]);
 
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'active') {
+                void captureEvent('home_appstate_active_status_refreshed');
+                void loadStatus();
+            }
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, [loadStatus]);
+
     // Watch user position when monitoring is active
     useEffect(() => {
         if (!isActive) {
@@ -176,11 +191,22 @@ export default function HomeScreen({ onOpenSettings }) {
             await stopGeofencing();
             setIsActive(false);
         } else {
-            if (!permissions.background) {
+            const freshPermissions = await checkPermissions();
+            setPermissions(freshPermissions);
+
+            if (!freshPermissions.background) {
                 Alert.alert(
                     'Permission Required',
                     'Background location permission is needed to monitor stations when the app is closed.',
-                    [{ text: 'OK' }],
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                            text: 'Open Settings',
+                            onPress: () => {
+                                void Linking.openSettings();
+                            },
+                        },
+                    ],
                 );
                 return;
             }

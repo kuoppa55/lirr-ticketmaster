@@ -19,6 +19,7 @@ import {
     requestBackgroundPermissions,
     startGeofencing,
     reconcileGeofencingState,
+    waitForBackgroundPermissionSync,
 } from '../services/geofencing';
 import { IS_NON_PROD } from '../config/env';
 import { captureEvent } from '../services/telemetry';
@@ -54,7 +55,12 @@ export function useAppFlow({ settings, saveSettings }) {
         if (!foregroundGranted) {
             logger.warn('Foreground location permission denied');
             void captureEvent('permissions_foreground_denied');
-            return { foregroundGranted: false, backgroundGranted: false };
+            return {
+                foregroundGranted: false,
+                backgroundGranted: false,
+                geofencingStarted: false,
+                reason: 'foreground_denied',
+            };
         }
 
         if (Platform.OS === 'android' && Platform.Version >= 30) {
@@ -68,13 +74,53 @@ export function useAppFlow({ settings, saveSettings }) {
         if (!background.granted) {
             logger.warn('Background location permission denied');
             void captureEvent('permissions_background_denied');
-            return { foregroundGranted: true, backgroundGranted: false };
+            return {
+                foregroundGranted: true,
+                backgroundGranted: false,
+                geofencingStarted: false,
+                reason: 'background_denied',
+            };
+        }
+
+        const permissionSyncResult = await waitForBackgroundPermissionSync();
+        if (!permissionSyncResult.backgroundGranted) {
+            logger.warn('Background permission did not propagate after grant flow');
+            void captureEvent('permission_propagation_retry_exhausted', {
+                attemptsUsed: permissionSyncResult.attemptsUsed,
+            });
+            return {
+                foregroundGranted: true,
+                backgroundGranted: false,
+                geofencingStarted: false,
+                reason: 'background_not_propagated',
+            };
+        }
+
+        if (permissionSyncResult.attemptsUsed > 1) {
+            void captureEvent('permission_propagation_retry_used', {
+                attemptsUsed: permissionSyncResult.attemptsUsed,
+            });
         }
 
         const selectedStations = await getSelectedStations();
         const started = await startGeofencing(selectedStations);
         void captureEvent('geofencing_start_after_permission_flow', { started });
-        return { foregroundGranted: true, backgroundGranted: true };
+
+        if (!started) {
+            return {
+                foregroundGranted: true,
+                backgroundGranted: true,
+                geofencingStarted: false,
+                reason: 'start_failed',
+            };
+        }
+
+        return {
+            foregroundGranted: true,
+            backgroundGranted: true,
+            geofencingStarted: true,
+            reason: 'started',
+        };
     }, []);
 
     const initializeApp = useCallback(async () => {
@@ -99,10 +145,16 @@ export function useAppFlow({ settings, saveSettings }) {
             const reconcileResult = await reconcileGeofencingState(selectedStations);
             void captureEvent('geofencing_reconciled', reconcileResult);
 
-            let permissionsResult = { foregroundGranted: true, backgroundGranted: true };
+            let permissionsResult = {
+                foregroundGranted: true,
+                backgroundGranted: true,
+                geofencingStarted: reconcileResult.active,
+                reason: 'reconciled',
+            };
             if (!reconcileResult.active) {
                 permissionsResult = await requestPermissionsAndStartGeofencing();
             }
+            void captureEvent('permission_flow_result', permissionsResult);
 
             if (!permissionsResult.foregroundGranted) {
                 setScreen(SCREENS.HOME);
@@ -141,8 +193,24 @@ export function useAppFlow({ settings, saveSettings }) {
         await saveSettings();
         setSavedRadiusMeters(settings.geofenceRadiusMeters);
         await setOnboardingComplete();
+        const permissionsResult = await requestPermissionsAndStartGeofencing();
+
+        if (
+            !permissionsResult.foregroundGranted ||
+            !permissionsResult.backgroundGranted ||
+            !permissionsResult.geofencingStarted
+        ) {
+            void captureEvent('onboarding_start_blocked_due_to_permissions', {
+                reason: permissionsResult.reason,
+            });
+            Alert.alert(
+                'Enable Background Location',
+                'Monitoring requires "Always Allow" location access. Please grant background access and try again.'
+            );
+            return;
+        }
+
         setIsOnboarding(false);
-        await requestPermissionsAndStartGeofencing();
         setScreen(SCREENS.HOME);
     }, [
         requestPermissionsAndStartGeofencing,
