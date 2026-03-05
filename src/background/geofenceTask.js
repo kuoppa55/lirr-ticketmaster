@@ -7,14 +7,11 @@ import { sendTicketReminder } from '../services/notifications';
 import {
     isInCooldown,
     setLastNotificationTime,
-    addPendingDwellTimer,
-    removePendingDwellTimer,
-    getUserSettings,
 } from '../services/storage';
 import { captureEvent, getTelemetryContext } from '../services/telemetry';
 import { logger } from '../utils/logger';
 
-const pendingDwellTimers = {};
+const processingEnterEvents = new Set();
 
 TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
     const { sessionId } = getTelemetryContext();
@@ -44,9 +41,9 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
     }
 
     if (eventType === Location.GeofencingEventType.Enter) {
-        if (pendingDwellTimers[stationId]) {
+        if (processingEnterEvents.has(stationId)) {
             logger.info(
-                'Duplicate geofence enter received while dwell timer is active, ignoring',
+                'Duplicate geofence enter received while prior enter is still processing, ignoring',
                 { stationId }
             );
             void captureEvent('geofence_enter_duplicate_ignored', {
@@ -58,52 +55,38 @@ TaskManager.defineTask(GEOFENCING_TASK_NAME, async ({ data, error }) => {
 
         logger.info('Entered geofence');
         void captureEvent('geofence_enter', { sessionId, stationId });
-        const station = findStationById(stationId);
-        const stationName = station?.name || 'LIRR Station';
-        await addPendingDwellTimer(stationId, stationName);
-        const settings = await getUserSettings();
-
-        pendingDwellTimers[stationId] = setTimeout(async () => {
-            try {
-                const inCooldown = await isInCooldown();
-                if (inCooldown) {
-                    logger.info('In cooldown period, skipping notification');
-                    void captureEvent('geofence_notification_skipped_cooldown', {
-                        sessionId,
-                        stationId,
-                    });
-                    delete pendingDwellTimers[stationId];
-                    await removePendingDwellTimer(stationId);
-                    return;
-                }
-
-                await sendTicketReminder(stationName);
-                logger.info('Notification sent');
-                void captureEvent('geofence_notification_sent', {
+        processingEnterEvents.add(stationId);
+        try {
+            const station = findStationById(stationId);
+            const stationName = station?.name || 'LIRR Station';
+            const inCooldown = await isInCooldown();
+            if (inCooldown) {
+                logger.info('In cooldown period, skipping notification');
+                void captureEvent('geofence_notification_skipped_cooldown', {
                     sessionId,
                     stationId,
                 });
-                await setLastNotificationTime(Date.now());
-            } catch (taskError) {
-                logger.error('Error sending notification:', taskError);
-                void captureEvent('geofence_notification_failed', {
-                    sessionId,
-                    stationId,
-                });
-            } finally {
-                delete pendingDwellTimers[stationId];
-                await removePendingDwellTimer(stationId);
+                return;
             }
-        }, settings.dwellTimeMs);
+
+            await sendTicketReminder(stationName);
+            logger.info('Notification sent');
+            void captureEvent('geofence_notification_sent', {
+                sessionId,
+                stationId,
+            });
+            await setLastNotificationTime(Date.now());
+        } catch (taskError) {
+            logger.error('Error sending notification:', taskError);
+            void captureEvent('geofence_notification_failed', {
+                sessionId,
+                stationId,
+            });
+        } finally {
+            processingEnterEvents.delete(stationId);
+        }
     } else if (eventType === Location.GeofencingEventType.Exit) {
         logger.info('Exited geofence');
         void captureEvent('geofence_exit', { sessionId, stationId });
-
-        if (pendingDwellTimers[stationId]) {
-            clearTimeout(pendingDwellTimers[stationId]);
-            delete pendingDwellTimers[stationId];
-            logger.info('Cancelled pending notification');
-        }
-        await removePendingDwellTimer(stationId);
     }
 });

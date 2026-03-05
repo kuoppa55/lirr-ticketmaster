@@ -15,20 +15,14 @@ import { logger } from '../utils/logger';
  *
  * Args:
  *     enabled: Whether the subscription should be active.
- *     options: Optional update throttling config.
  *
  * Returns:
  *     Object with heading (0-360 degrees) and available (boolean).
  */
-export function useCompass(
-    enabled = true,
-    { minDeltaDeg = 3, minIntervalMs = 120 } = {}
-) {
+export function useCompass(enabled = true) {
     const [heading, setHeading] = useState(0);
     const [available, setAvailable] = useState(false);
     const subscriptionRef = useRef(null);
-    const lastHeadingRef = useRef(null);
-    const lastUpdateAtRef = useRef(0);
 
     useEffect(() => {
         if (!enabled) {
@@ -36,8 +30,6 @@ export function useCompass(
                 subscriptionRef.current.remove();
                 subscriptionRef.current = null;
             }
-            lastHeadingRef.current = null;
-            lastUpdateAtRef.current = 0;
             setAvailable(false);
             return;
         }
@@ -50,35 +42,13 @@ export function useCompass(
                     if (!mounted) return;
 
                     // Prefer trueHeading (GPS+magnetometer fusion) when valid
-                    let nextHeading = null;
                     if (data.trueHeading >= 0) {
-                        nextHeading = data.trueHeading;
+                        setHeading(data.trueHeading);
+                        setAvailable(true);
                     } else if (data.magHeading >= 0) {
-                        nextHeading = data.magHeading;
+                        setHeading(data.magHeading);
+                        setAvailable(true);
                     }
-
-                    if (nextHeading === null) {
-                        return;
-                    }
-
-                    const now = Date.now();
-                    const lastHeading = lastHeadingRef.current;
-                    const angularDelta = lastHeading === null
-                        ? 360
-                        : Math.abs((((nextHeading - lastHeading) + 540) % 360) - 180);
-
-                    if (
-                        lastHeading !== null &&
-                        angularDelta < minDeltaDeg &&
-                        now - lastUpdateAtRef.current < minIntervalMs
-                    ) {
-                        return;
-                    }
-
-                    lastHeadingRef.current = nextHeading;
-                    lastUpdateAtRef.current = now;
-                    setHeading(nextHeading);
-                    setAvailable(true);
                 });
 
                 if (mounted) {
@@ -103,7 +73,7 @@ export function useCompass(
                 subscriptionRef.current = null;
             }
         };
-    }, [enabled, minDeltaDeg, minIntervalMs]);
+    }, [enabled]);
 
     return { heading, available };
 }

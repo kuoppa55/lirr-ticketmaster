@@ -9,7 +9,6 @@ import { logger } from '../utils/logger';
 
 let cachedUserSettings = null;
 let cachedSelectedStations = null;
-let pendingTimersCache = null;
 
 function getDefaultSettingsCopy() {
     return { ...DEFAULT_SETTINGS };
@@ -31,18 +30,11 @@ function sanitizeSettings(rawSettings = {}) {
     };
 
     return {
-        ...merged,
         geofenceRadiusMeters: clamp(
             Number(merged.geofenceRadiusMeters),
             SETTINGS_LIMITS.geofenceRadiusMeters.min,
             SETTINGS_LIMITS.geofenceRadiusMeters.max,
             DEFAULT_SETTINGS.geofenceRadiusMeters
-        ),
-        dwellTimeMs: clamp(
-            Number(merged.dwellTimeMs),
-            SETTINGS_LIMITS.dwellTimeMs.min,
-            SETTINGS_LIMITS.dwellTimeMs.max,
-            DEFAULT_SETTINGS.dwellTimeMs
         ),
         cooldownMs: clamp(
             Number(merged.cooldownMs),
@@ -53,19 +45,6 @@ function sanitizeSettings(rawSettings = {}) {
         useMetric: Boolean(merged.useMetric),
         notificationPrivacyMode: Boolean(merged.notificationPrivacyMode),
     };
-}
-
-function filterActiveTimers(timers) {
-    const now = Date.now();
-    const activeTimers = {};
-
-    for (const [stationId, timer] of Object.entries(timers)) {
-        if (timer.expiresAt > now) {
-            activeTimers[stationId] = timer;
-        }
-    }
-
-    return activeTimers;
 }
 
 /**
@@ -292,133 +271,6 @@ export async function getRemainingCooldown() {
 }
 
 /**
- * Add a pending dwell timer for a station.
- * Persists timer state so it can survive app restarts.
- *
- * Args:
- *     stationId: Unique identifier for the station.
- *     stationName: Display name of the station.
- *
- * Returns:
- *     The timer object that was stored, or null on error.
- */
-export async function addPendingDwellTimer(stationId, stationName) {
-    try {
-        const timers = await getPendingDwellTimers();
-        const settings = await getUserSettings();
-        const now = Date.now();
-        const timer = {
-            stationId,
-            stationName,
-            startedAt: now,
-            expiresAt: now + settings.dwellTimeMs,
-        };
-        timers[stationId] = timer;
-        pendingTimersCache = timers;
-        await AsyncStorage.setItem(
-            STORAGE_KEYS.PENDING_DWELL_TIMERS,
-            JSON.stringify(timers)
-        );
-        return timer;
-    } catch (error) {
-        logger.error('Error adding pending dwell timer:', error);
-        return null;
-    }
-}
-
-/**
- * Remove a pending dwell timer for a station.
- *
- * Args:
- *     stationId: Unique identifier for the station.
- *
- * Returns:
- *     True if removal successful, false otherwise.
- */
-export async function removePendingDwellTimer(stationId) {
-    try {
-        const timers = await getPendingDwellTimers();
-        if (timers[stationId]) {
-            delete timers[stationId];
-            pendingTimersCache = timers;
-            await AsyncStorage.setItem(
-                STORAGE_KEYS.PENDING_DWELL_TIMERS,
-                JSON.stringify(timers)
-            );
-        }
-        return true;
-    } catch (error) {
-        logger.error('Error removing pending dwell timer:', error);
-        return false;
-    }
-}
-
-/**
- * Get all pending dwell timers, filtering out expired ones.
- *
- * Returns:
- *     Object mapping stationId to timer objects (only non-expired).
- */
-export async function getPendingDwellTimers() {
-    if (pendingTimersCache) {
-        const activeTimers = filterActiveTimers(pendingTimersCache);
-        if (
-            Object.keys(activeTimers).length !==
-            Object.keys(pendingTimersCache).length
-        ) {
-            pendingTimersCache = activeTimers;
-            await AsyncStorage.setItem(
-                STORAGE_KEYS.PENDING_DWELL_TIMERS,
-                JSON.stringify(activeTimers)
-            );
-        }
-        return pendingTimersCache;
-    }
-
-    try {
-        const data = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_DWELL_TIMERS);
-        if (!data) {
-            pendingTimersCache = {};
-            return {};
-        }
-
-        const timers = JSON.parse(data);
-        const activeTimers = filterActiveTimers(timers);
-        pendingTimersCache = activeTimers;
-
-        // Clean up expired timers in storage if any were removed
-        if (Object.keys(activeTimers).length !== Object.keys(timers).length) {
-            await AsyncStorage.setItem(
-                STORAGE_KEYS.PENDING_DWELL_TIMERS,
-                JSON.stringify(activeTimers)
-            );
-        }
-
-        return activeTimers;
-    } catch (error) {
-        logger.error('Error getting pending dwell timers:', error);
-        return {};
-    }
-}
-
-/**
- * Clear all pending dwell timers.
- *
- * Returns:
- *     True if clear successful, false otherwise.
- */
-export async function clearPendingDwellTimers() {
-    try {
-        await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_DWELL_TIMERS);
-        pendingTimersCache = {};
-        return true;
-    } catch (error) {
-        logger.error('Error clearing pending dwell timers:', error);
-        return false;
-    }
-}
-
-/**
  * Clear all stored data.
  * Useful for debugging or resetting the app.
  *
@@ -431,12 +283,11 @@ export async function clearAllData() {
             STORAGE_KEYS.SELECTED_STATIONS,
             STORAGE_KEYS.ONBOARDING_COMPLETE,
             STORAGE_KEYS.LAST_NOTIFICATION_TIME,
-            STORAGE_KEYS.PENDING_DWELL_TIMERS,
+            STORAGE_KEYS.LEGACY_PENDING_DWELL_TIMERS,
             STORAGE_KEYS.USER_SETTINGS,
         ]);
         cachedUserSettings = null;
         cachedSelectedStations = null;
-        pendingTimersCache = {};
         return true;
     } catch (error) {
         logger.error('Error clearing data:', error);
@@ -446,22 +297,28 @@ export async function clearAllData() {
 
 /**
  * Reconcile persisted runtime state on app launch.
- * Currently ensures pending dwell timers are filtered for expiration and
- * returns summary diagnostics for observability and debug screens.
+ * Cleans up legacy dwell timer state from older app versions.
  *
  * Returns:
  *     Object with counts of active timers.
  */
 export async function reconcileRuntimeState() {
     try {
-        const activeTimers = await getPendingDwellTimers();
+        const legacyData = await AsyncStorage.getItem(
+            STORAGE_KEYS.LEGACY_PENDING_DWELL_TIMERS
+        );
+        const removedLegacyPendingTimers = Boolean(legacyData);
+        if (removedLegacyPendingTimers) {
+            await AsyncStorage.removeItem(STORAGE_KEYS.LEGACY_PENDING_DWELL_TIMERS);
+        }
+
         return {
-            activeTimerCount: Object.keys(activeTimers).length,
+            removedLegacyPendingTimers,
         };
     } catch (error) {
         logger.error('Error reconciling runtime state:', error);
         return {
-            activeTimerCount: 0,
+            removedLegacyPendingTimers: false,
         };
     }
 }

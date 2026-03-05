@@ -48,10 +48,10 @@ describe('storage service', () => {
         const settings = await getUserSettings();
 
         expect(settings.geofenceRadiusMeters).toBe(2000);
-        expect(settings.dwellTimeMs).toBe(15000);
         expect(settings.cooldownMs).toBe(5400000);
         expect(settings.useMetric).toBe(true);
         expect(settings.notificationPrivacyMode).toBe(true);
+        expect(settings.dwellTimeMs).toBeUndefined();
     });
 
     test('cooldown checks boundary correctly', async () => {
@@ -83,51 +83,6 @@ describe('storage service', () => {
         expect(AsyncStorage.__store.has(`${STORAGE_KEYS.LAST_NOTIFICATION_TIME}:station-b`)).toBe(false);
     });
 
-    test('pending dwell timers are filtered to active timers only', async () => {
-        const AsyncStorage = require('@react-native-async-storage/async-storage');
-        const { STORAGE_KEYS } = require('../src/constants');
-        const { getPendingDwellTimers } = require('../src/services/storage');
-
-        Date.now = jest.fn(() => 1000000);
-        await AsyncStorage.setItem(
-            STORAGE_KEYS.PENDING_DWELL_TIMERS,
-            JSON.stringify({
-                activeStation: {
-                    stationId: 'activeStation',
-                    stationName: 'Active',
-                    startedAt: 999000,
-                    expiresAt: 1005000,
-                },
-                expiredStation: {
-                    stationId: 'expiredStation',
-                    stationName: 'Expired',
-                    startedAt: 900000,
-                    expiresAt: 999999,
-                },
-            })
-        );
-
-        const timers = await getPendingDwellTimers();
-
-        expect(Object.keys(timers)).toEqual(['activeStation']);
-        expect(timers.activeStation.stationName).toBe('Active');
-    });
-
-    test('add and remove pending dwell timer persist state', async () => {
-        const { addPendingDwellTimer, removePendingDwellTimer, getPendingDwellTimers } = require('../src/services/storage');
-
-        Date.now = jest.fn(() => 2000000);
-        const timer = await addPendingDwellTimer('station-a', 'Station A');
-
-        expect(timer.stationId).toBe('station-a');
-        let timers = await getPendingDwellTimers();
-        expect(timers['station-a']).toBeDefined();
-
-        await removePendingDwellTimer('station-a');
-        timers = await getPendingDwellTimers();
-        expect(timers['station-a']).toBeUndefined();
-    });
-
     test('clearAllData removes persisted keys and clears caches', async () => {
         const AsyncStorage = require('@react-native-async-storage/async-storage');
         const { STORAGE_KEYS } = require('../src/constants');
@@ -136,18 +91,15 @@ describe('storage service', () => {
             saveSelectedStations,
             setOnboardingComplete,
             setLastNotificationTime,
-            addPendingDwellTimer,
             clearAllData,
             getUserSettings,
             getSelectedStations,
-            getPendingDwellTimers,
         } = require('../src/services/storage');
 
         await saveUserSettings({ geofenceRadiusMeters: 400 });
         await saveSelectedStations(['station-a']);
         await setOnboardingComplete();
         await setLastNotificationTime(123456);
-        await addPendingDwellTimer('station-a', 'Station A');
 
         await clearAllData();
 
@@ -155,21 +107,36 @@ describe('storage service', () => {
             STORAGE_KEYS.SELECTED_STATIONS,
             STORAGE_KEYS.ONBOARDING_COMPLETE,
             STORAGE_KEYS.LAST_NOTIFICATION_TIME,
-            STORAGE_KEYS.PENDING_DWELL_TIMERS,
+            STORAGE_KEYS.LEGACY_PENDING_DWELL_TIMERS,
             STORAGE_KEYS.USER_SETTINGS,
         ]);
         expect(await getSelectedStations()).toEqual([]);
-        expect(await getPendingDwellTimers()).toEqual({});
         expect((await getUserSettings()).geofenceRadiusMeters).toBe(300);
     });
 
-    test('reconcileRuntimeState returns active pending timer count', async () => {
-        const { addPendingDwellTimer, reconcileRuntimeState } = require('../src/services/storage');
+    test('reconcileRuntimeState removes legacy pending timers key when present', async () => {
+        const AsyncStorage = require('@react-native-async-storage/async-storage');
+        const { STORAGE_KEYS } = require('../src/constants');
+        const { reconcileRuntimeState } = require('../src/services/storage');
 
-        Date.now = jest.fn(() => 500000);
-        await addPendingDwellTimer('station-a', 'Station A');
+        await AsyncStorage.setItem(
+            STORAGE_KEYS.LEGACY_PENDING_DWELL_TIMERS,
+            JSON.stringify({ stationA: { expiresAt: 1 } })
+        );
 
         const summary = await reconcileRuntimeState();
-        expect(summary).toEqual({ activeTimerCount: 1 });
+
+        expect(summary).toEqual({ removedLegacyPendingTimers: true });
+        expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+            STORAGE_KEYS.LEGACY_PENDING_DWELL_TIMERS
+        );
+    });
+
+    test('reconcileRuntimeState is a no-op when no legacy timers exist', async () => {
+        const { reconcileRuntimeState } = require('../src/services/storage');
+
+        const summary = await reconcileRuntimeState();
+
+        expect(summary).toEqual({ removedLegacyPendingTimers: false });
     });
 });

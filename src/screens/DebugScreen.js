@@ -84,17 +84,6 @@ function SectionCard({ title, children }) {
 }
 
 /**
- * Progress bar component for dwell timers.
- */
-function ProgressBar({ progress }) {
-    return (
-        <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { width: `${Math.min(100, progress * 100)}%` }]} />
-        </View>
-    );
-}
-
-/**
  * Debug screen component.
  *
  * Args:
@@ -111,7 +100,6 @@ export default function DebugScreen({ onBack }) {
         nearbyGeofences,
         cooldownRemaining,
         lastNotificationTime,
-        pendingDwellTimers,
         config,
         isLoading,
         refresh,
@@ -137,24 +125,7 @@ export default function DebugScreen({ onBack }) {
         .filter((g) => !g.isInside)
         .slice(0, 5);
 
-    // Calculate dwell timer display data
-    const dwellTimerData = (() => {
-        const now = Date.now();
-        return Object.values(pendingDwellTimers).map((timer) => {
-            const remaining = Math.max(0, timer.expiresAt - now);
-            const elapsed = now - timer.startedAt;
-            const total = timer.expiresAt - timer.startedAt;
-            const progress = Math.min(1, elapsed / total);
-            return {
-                ...timer,
-                remaining,
-                progress,
-            };
-        });
-    })();
-
     // Check if config values are debug values
-    const isDebugDwellTime = config.dwellTimeMs < 60000;
     const isDebugCooldown = config.cooldownMs < 5400000;
 
     if (isLoading) {
@@ -284,35 +255,11 @@ export default function DebugScreen({ onBack }) {
                     </View>
                 </SectionCard>
 
-                {/* Pending Dwell Timers */}
-                <SectionCard title="PENDING DWELL TIMERS">
-                    {dwellTimerData.length > 0 ? (
-                        dwellTimerData.map((timer) => (
-                            <View key={timer.stationId} style={styles.timerCard}>
-                                <Text style={styles.timerStation}>{timer.stationName}</Text>
-                                <Text style={styles.timerRemaining}>
-                                    Fires in: {formatDuration(timer.remaining)}
-                                </Text>
-                                <ProgressBar progress={timer.progress} />
-                            </View>
-                        ))
-                    ) : (
-                        <Text style={styles.noDataText}>No pending timers</Text>
-                    )}
-                </SectionCard>
-
                 {/* Configuration */}
                 <SectionCard title="CONFIG (Debug Values!)">
                     <View style={styles.row}>
                         <Text style={styles.label}>Geofence Radius:</Text>
                         <Text style={styles.value}>{config.geofenceRadius}m</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.label}>Dwell Time:</Text>
-                        <Text style={[styles.value, isDebugDwellTime && styles.debugWarning]}>
-                            {formatDuration(config.dwellTimeMs)}
-                            {isDebugDwellTime ? ' \u26A0\uFE0F' : ''}
-                        </Text>
                     </View>
                     <View style={styles.row}>
                         <Text style={styles.label}>Cooldown:</Text>
@@ -321,7 +268,7 @@ export default function DebugScreen({ onBack }) {
                             {isDebugCooldown ? ' \u26A0\uFE0F' : ''}
                         </Text>
                     </View>
-                    {(isDebugDwellTime || isDebugCooldown) && (
+                    {isDebugCooldown && (
                         <Text style={styles.debugNote}>
                             {'\u26A0\uFE0F'} Debug values active - not production settings
                         </Text>
@@ -497,36 +444,6 @@ const styles = StyleSheet.create({
     },
     successText: {
         color: COLORS.primary,
-    },
-    timerCard: {
-        backgroundColor: 'rgba(204, 112, 0, 0.2)',
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: COLORS.secondary,
-    },
-    timerStation: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.primary,
-        marginBottom: 4,
-    },
-    timerRemaining: {
-        fontSize: 12,
-        color: COLORS.secondary,
-        marginBottom: 8,
-    },
-    progressContainer: {
-        height: 8,
-        backgroundColor: COLORS.dimmed,
-        borderRadius: 4,
-        overflow: 'hidden',
-    },
-    progressBar: {
-        height: '100%',
-        backgroundColor: COLORS.primary,
-        borderRadius: 4,
     },
     debugWarning: {
         color: COLORS.primary,

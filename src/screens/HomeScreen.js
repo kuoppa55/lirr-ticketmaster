@@ -72,10 +72,7 @@ export default function HomeScreen({ onOpenSettings }) {
 
     const locationSubRef = useRef(null);
 
-    const { heading, available: compassAvailable } = useCompass(isActive, {
-        minDeltaDeg: 3,
-        minIntervalMs: 120,
-    });
+    const { heading, available: compassAvailable } = useCompass(isActive);
     const nearestStations = useNearestStations({
         location,
         monitoredStationIds: selectedStationIds,
@@ -273,7 +270,7 @@ export default function HomeScreen({ onOpenSettings }) {
                 {/* Header */}
                 <View style={styles.header}>
                     <View style={styles.titleBox}>
-                        <LEDText text="LIRR test" style={styles.titleLarge} flicker={false} />
+                        <LEDText text="LIRR" style={styles.titleLarge} flicker={false} />
                         <LEDText text="REMINDER" style={styles.titleSmall} flicker={false} />
                     </View>
                     <TouchableOpacity

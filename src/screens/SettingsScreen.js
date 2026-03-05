@@ -102,7 +102,6 @@ export default function SettingsScreen({
                 settings={settings}
                 onUpdateSetting={onUpdateSetting}
                 radiusDescription="How close to a station before we start watching?"
-                dwellDescription="How long near a station before you get notified."
                 cooldownDescription="Minimum wait between notifications."
                 showNotificationPrivacy={true}
             />

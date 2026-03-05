@@ -5,7 +5,7 @@
  * marquee scroll. Text renders in the pixel font with a configurable glow.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Animated, Easing, View, StyleSheet } from 'react-native';
 import { COLORS, FONTS } from '../theme/colors';
 
@@ -31,7 +31,8 @@ export default function LEDText({
     const flickerAnim = useRef(new Animated.Value(1)).current;
     const scrollAnim = useRef(new Animated.Value(containerWidth)).current;
     const [textWidth, setTextWidth] = useState(0);
-    const measuredRef = useRef(false);
+    const measuredWidthRef = useRef(0);
+    const scrollLoopRef = useRef(null);
 
     // Flicker animation: subtle 4-step opacity loop (~3.5s cycle)
     useEffect(() => {
@@ -69,39 +70,60 @@ export default function LEDText({
         return () => loop.stop();
     }, [flicker, flickerAnim]);
 
-    // Reset text measurement when text changes (live station data)
-    useEffect(() => {
-        if (scroll) {
-            measuredRef.current = false;
-            setTextWidth(0);
-            scrollAnim.setValue(containerWidth);
+    const stopScrollLoop = useCallback(() => {
+        if (scrollLoopRef.current) {
+            scrollLoopRef.current.stop();
+            scrollLoopRef.current = null;
         }
-    }, [text, scroll, scrollAnim, containerWidth]);
+    }, []);
 
-    // Scroll animation: horizontal marquee
-    useEffect(() => {
-        if (!scroll || textWidth === 0) return;
+    const startScrollLoop = useCallback((width) => {
+        if (width <= 0) {
+            return;
+        }
 
-        const PIXELS_PER_SECOND = 50;
-        const totalDistance = containerWidth + textWidth;
-        const duration = (totalDistance / PIXELS_PER_SECOND) * 1000;
+        stopScrollLoop();
+        scrollAnim.setValue(containerWidth);
+
+        const pixelsPerSecond = 50;
+        const totalDistance = containerWidth + width;
+        const duration = Math.max(
+            1000,
+            (totalDistance / pixelsPerSecond) * 1000
+        );
 
         const loop = Animated.loop(
             Animated.timing(scrollAnim, {
-                toValue: -textWidth,
+                toValue: -width,
                 duration,
                 easing: Easing.linear,
                 useNativeDriver: true,
             }),
         );
 
+        scrollLoopRef.current = loop;
         loop.start();
-        return () => loop.stop();
-    }, [scroll, textWidth, containerWidth, scrollAnim]);
+    }, [containerWidth, scrollAnim, stopScrollLoop]);
+
+    // Keep marquee loop resilient across text updates and layout jitter.
+    useEffect(() => {
+        if (!scroll) {
+            stopScrollLoop();
+            return;
+        }
+
+        const width = measuredWidthRef.current || textWidth;
+        if (width > 0) {
+            startScrollLoop(width);
+        }
+
+        return stopScrollLoop;
+    }, [scroll, text, textWidth, containerWidth, startScrollLoop, stopScrollLoop]);
 
     const handleTextLayout = (e) => {
-        if (!measuredRef.current) {
-            measuredRef.current = true;
+        const width = Math.round(e.nativeEvent.layout.width);
+        if (width > 0 && width !== measuredWidthRef.current) {
+            measuredWidthRef.current = width;
             setTextWidth(e.nativeEvent.layout.width);
         }
     };

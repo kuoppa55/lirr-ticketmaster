@@ -8,7 +8,6 @@ import * as Location from 'expo-location';
 
 import { checkPermissions, getRegisteredRegions, isGeofencingActive } from '../services/geofencing';
 import {
-    getPendingDwellTimers,
     getRemainingCooldown,
     getLastNotificationTime,
     getUserSettings,
@@ -49,13 +48,9 @@ export function useDebugState(autoRefreshInterval = 2000) {
     const [cooldownRemaining, setCooldownRemaining] = useState(0);
     const [lastNotificationTime, setLastNotificationTimestamp] = useState(null);
 
-    // Dwell timer state
-    const [pendingDwellTimers, setPendingDwellTimers] = useState({});
-
     // Configuration values (loaded from user settings)
     const [config, setConfig] = useState({
         geofenceRadius: DEFAULT_SETTINGS.geofenceRadiusMeters,
-        dwellTimeMs: DEFAULT_SETTINGS.dwellTimeMs,
         cooldownMs: DEFAULT_SETTINGS.cooldownMs,
     });
 
@@ -102,15 +97,10 @@ export function useDebugState(autoRefreshInterval = 2000) {
             const lastTime = await getLastNotificationTime();
             setLastNotificationTimestamp(lastTime);
 
-            // Get pending dwell timers
-            const timers = await getPendingDwellTimers();
-            setPendingDwellTimers(timers);
-
             // Load user settings for config display
             const settings = await getUserSettings();
             setConfig({
                 geofenceRadius: settings.geofenceRadiusMeters,
-                dwellTimeMs: settings.dwellTimeMs,
                 cooldownMs: settings.cooldownMs,
             });
         } catch (error) {
@@ -236,9 +226,6 @@ export function useDebugState(autoRefreshInterval = 2000) {
         // Cooldown
         cooldownRemaining,
         lastNotificationTime,
-
-        // Dwell timers
-        pendingDwellTimers,
 
         // Configuration
         config,

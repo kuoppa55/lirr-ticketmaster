@@ -6,7 +6,7 @@
  * bearing and logarithmic distance scaling.
  */
 
-import React, { useRef } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { formatDistance } from '../utils/units';
 import { COLORS, FONTS } from '../theme/colors';
@@ -40,7 +40,7 @@ function getDotColor(ratio) {
  *     size: Diameter of the radar circle in pixels.
  *     useMetric: Whether to show distances in metric units.
  */
-function CompassRadar({
+export default function CompassRadar({
     heading,
     stations,
     size = 250,
@@ -48,21 +48,9 @@ function CompassRadar({
 }) {
     const center = size / 2;
     const maxR = center - 30; // Leave room for labels at edges
-
-    // Stabilize maxDistance to prevent cosmetic jitter from GPS noise.
-    // Only update when the raw value changes by more than 15%.
-    const stableMaxDistRef = useRef(1);
-    const rawMaxDistance = stations.length > 0
+    const maxDistance = stations.length > 0
         ? Math.max(...stations.map((s) => s.distance), 1)
         : 1;
-    const stableVal = stableMaxDistRef.current;
-    if (
-        stableVal === 1 ||
-        Math.abs(rawMaxDistance - stableVal) / stableVal > 0.15
-    ) {
-        stableMaxDistRef.current = rawMaxDistance;
-    }
-    const maxDistance = stableMaxDistRef.current;
 
     // Position the "N" indicator on the ring
     const nAngleRad = ((360 - heading) * Math.PI) / 180;
@@ -268,36 +256,4 @@ const styles = StyleSheet.create({
         color: COLORS.muted,
         textAlign: 'center',
     },
-});
-
-function areStationsEqual(prevStations, nextStations) {
-    if (prevStations.length !== nextStations.length) {
-        return false;
-    }
-
-    for (let i = 0; i < prevStations.length; i += 1) {
-        const prev = prevStations[i];
-        const next = nextStations[i];
-        if (prev.identifier !== next.identifier) {
-            return false;
-        }
-        // Ignore tiny jitter to prevent repaint churn.
-        if (Math.abs(prev.distance - next.distance) >= 5) {
-            return false;
-        }
-        if (Math.abs(prev.bearing - next.bearing) >= 3) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-export default React.memo(CompassRadar, (prevProps, nextProps) => {
-    return (
-        Math.abs(prevProps.heading - nextProps.heading) < 1 &&
-        prevProps.size === nextProps.size &&
-        prevProps.useMetric === nextProps.useMetric &&
-        areStationsEqual(prevProps.stations, nextProps.stations)
-    );
 });

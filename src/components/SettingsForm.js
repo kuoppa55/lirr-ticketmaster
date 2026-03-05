@@ -4,7 +4,6 @@ import { View, Text, Switch, StyleSheet } from 'react-native';
 import PresetChips from './PresetChips';
 import {
     RADIUS_PRESETS,
-    DWELL_PRESETS,
     COOLDOWN_PRESETS,
     SETTINGS_LIMITS,
 } from '../constants';
@@ -20,13 +19,11 @@ export default function SettingsForm({
     settings,
     onUpdateSetting,
     radiusDescription,
-    dwellDescription,
     cooldownDescription,
     showNotificationPrivacy = false,
 }) {
     const {
         geofenceRadiusMeters,
-        dwellTimeMs,
         cooldownMs,
         useMetric,
         notificationPrivacyMode,
@@ -85,27 +82,6 @@ export default function SettingsForm({
                     customUnit={useMetric ? 'm' : 'ft'}
                     parseCustom={(text) => parseRadiusInput(text, useMetric)}
                     useMetric={useMetric}
-                />
-            </View>
-
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Dwell Time</Text>
-                <Text style={styles.sectionDescription}>{dwellDescription}</Text>
-                <Text style={styles.currentValue}>
-                    Current: {formatDuration(dwellTimeMs)}
-                </Text>
-                <PresetChips
-                    presets={DWELL_PRESETS}
-                    selectedValue={dwellTimeMs}
-                    onSelect={(value) => onUpdateSetting('dwellTimeMs', value)}
-                    customPlaceholder="Enter seconds"
-                    customUnit="sec"
-                    parseCustom={(text) =>
-                        parseDurationInput(text, 'seconds', {
-                            minMs: SETTINGS_LIMITS.dwellTimeMs.min,
-                            maxMs: SETTINGS_LIMITS.dwellTimeMs.max,
-                        })
-                    }
                 />
             </View>
 

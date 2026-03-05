@@ -27,10 +27,10 @@ npm run build:production     # Production build (both platforms)
 
 ### Core Flow
 1. **App.js** - Entry point that defines the geofencing background task at module level (required for background execution) and handles app initialization/navigation
-2. User selects stations during onboarding, then configures settings (radius, dwell time, cooldown)
+2. User selects stations during onboarding, then configures settings (radius, cooldown)
 3. Geofencing monitors selected stations in background using user-configured radius
-4. On geofence entry, a dwell timer starts (user-configured duration, default 60s)
-5. If user remains in geofence, notification fires (respecting user-configured cooldown, default 90 min)
+4. On geofence entry, notification eligibility is checked against global cooldown
+5. If cooldown is inactive, notification fires immediately and starts cooldown (default 90 min)
 
 ### Navigation / Screen States (managed in App.js)
 `loading` -> `stations` -> `onboarding-settings` -> `home` (onboarding flow)
@@ -40,7 +40,7 @@ npm run build:production     # Production build (both platforms)
 ### Screens (`src/screens/`)
 - **HomeScreen.js** - Dark-themed minimal UI: status label, compass radar, large circular monitoring toggle button, cooldown bar, permission status dots
 - **StationSelectScreen.js** - Station selection by branch with search
-- **SettingsConfigScreen.js** - Shared settings form (radius/dwell/cooldown presets + custom input, unit toggle) used in both onboarding and settings
+- **SettingsConfigScreen.js** - Shared settings form (radius/cooldown presets + custom input, unit toggle) used in both onboarding and settings
 - **SettingsScreen.js** - Full settings page with config form, edit stations button, and collapsible debug tools
 - **DebugScreen.js** - Debug info (location, nearest geofence, etc.)
 
@@ -60,7 +60,7 @@ npm run build:production     # Production build (both platforms)
 ### Services (`src/services/`)
 - **geofencing.js** - Location permissions and geofence region management via `expo-location`; reads radius from user settings
 - **notifications.js** - Notification channel setup and sending via `expo-notifications`
-- **storage.js** - AsyncStorage persistence for selected stations, onboarding state, cooldown tracking, user settings, and pending dwell timers
+- **storage.js** - AsyncStorage persistence for selected stations, onboarding state, cooldown tracking, user settings, and legacy runtime cleanup
 
 ### Utilities (`src/utils/`)
 - **geo.js** - Haversine distance calculation, geofence proximity checks, distance formatting
@@ -69,13 +69,12 @@ npm run build:production     # Production build (both platforms)
 
 ### Key Constants (`src/constants/index.js`)
 - `GEOFENCE_RADIUS`: 300 meters (default fallback)
-- `DWELL_TIME_MS`: 60 seconds (default fallback)
 - `GLOBAL_COOLDOWN_MS`: 90 minutes (default fallback)
 - `IOS_MAX_REGIONS`: 20 (iOS geofencing limit)
-- `DEFAULT_SETTINGS`: `{ geofenceRadiusMeters: 300, dwellTimeMs: 60000, cooldownMs: 5400000, useMetric: false }`
-- `RADIUS_PRESETS`, `DWELL_PRESETS`, `COOLDOWN_PRESETS` - preset options for settings UI
+- `DEFAULT_SETTINGS`: `{ geofenceRadiusMeters: 300, cooldownMs: 5400000, useMetric: false }`
+- `RADIUS_PRESETS`, `COOLDOWN_PRESETS` - preset options for settings UI
 
-All three configurable values (radius, dwell, cooldown) are user-configurable via the settings screen. The constants serve as fallbacks. The background task and services read live values from AsyncStorage via `getUserSettings()`.
+Both configurable values (radius, cooldown) are user-configurable via the settings screen. The constants serve as fallbacks. The background task and services read live values from AsyncStorage via `getUserSettings()`.
 
 ### Station Data (`src/data/stations.js`)
 - Contains all 124 LIRR stations with coordinates organized by branch
@@ -97,8 +96,8 @@ Actual geofencing requires a physical device or GPS spoofing. Debug tools are ac
 ## Important Implementation Notes
 
 - The `TaskManager.defineTask()` call in App.js MUST remain at module level (outside components) for background execution to work
-- The background task reads user settings from AsyncStorage (available in background JS context) for dwell time - this async read happens once per geofence enter event
-- Dwell timers are tracked both in-memory (`pendingDwellTimers` object) and persisted to AsyncStorage; in-memory timers don't survive process kills but persisted state does
+- The background task checks global cooldown before sending each geofence-enter reminder
+- Runtime reconciliation removes legacy pending dwell timer state from older app versions
 - The notification channel on Android is configured with `bypassDnd: true` for critical alerts
 - When the user changes geofence radius in settings, `startGeofencing()` is called again to re-register all regions with the new radius
 - Compass/location subscriptions on HomeScreen only run while monitoring is active; cleanup is handled via `useEffect` returns

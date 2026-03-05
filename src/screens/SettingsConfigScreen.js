@@ -43,7 +43,6 @@ export default function SettingsConfigScreen({
                 settings={settings}
                 onUpdateSetting={onUpdateSetting}
                 radiusDescription="How close to a station before we start watching? Larger means earlier detection but more false positives."
-                dwellDescription="How long you need to be near a station before you get notified. Prevents false alerts when passing through."
                 cooldownDescription="Minimum wait between notifications. Prevents repeated alerts for the same trip."
             />
 

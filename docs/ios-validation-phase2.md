@@ -15,7 +15,7 @@ Validate reliability-critical geofencing and notification behavior on physical i
 - At least 2 stations are selected for tracking.
 - Notification permissions are granted.
 - Foreground and background location permissions are granted.
-- Cooldown and dwell settings are known and recorded before test.
+- Cooldown settings are known and recorded before test.
 
 ## Required Scenarios
 
@@ -24,17 +24,17 @@ Validate reliability-critical geofencing and notification behavior on physical i
 - Verify app behavior when permissions are denied/revoked and then restored.
 - Expected result: monitoring state and status indicators remain accurate.
 
-### 2. Enter + Dwell Triggers One Notification
-- Enter a tracked station geofence and remain for at least dwell duration.
+### 2. Enter Triggers One Notification
+- Enter a tracked station geofence.
 - Expected result: exactly one reminder notification is delivered.
 
-### 3. Exit Before Dwell Expiry Does Not Notify
-- Enter a tracked station and exit before dwell duration completes.
-- Expected result: no reminder notification is delivered.
+### 3. Exit Event Does Not Trigger Additional Notify
+- Enter a tracked station, receive the reminder, then exit.
+- Expected result: exit does not trigger a second reminder notification.
 
 ### 4. Global Cooldown Across Stations
 - Trigger a reminder at Station A.
-- Before cooldown expires, enter Station B and remain for dwell duration.
+- Before cooldown expires, enter Station B.
 - Expected result: no second reminder is delivered.
 - Note: cooldown is global, not per station.
 
@@ -54,7 +54,7 @@ Validate reliability-critical geofencing and notification behavior on physical i
 | Scenario | Pass/Fail | Notes |
 | --- | --- | --- |
 | Permission Flow |  |  |
-| Enter + Dwell |  |  |
-| Exit Before Dwell |  |  |
+| Enter Notification |  |  |
+| Exit Behavior |  |  |
 | Global Cooldown |  |  |
 | Privacy Mode |  |  |

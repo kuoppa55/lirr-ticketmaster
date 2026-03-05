@@ -7,7 +7,7 @@ This document tracks the non-feature hardening completed for production readines
 - Added Expo config smoke workflow (`.github/workflows/expo-config-smoke.yml`).
 - Added telemetry service with session context, breadcrumbs, and production error/event transport.
 - Wired telemetry into logger, permission flow, geofencing lifecycle, and notification flow.
-- Added startup runtime reconciliation for pending dwell timers and geofencing state.
+- Added startup runtime reconciliation for legacy runtime data and geofencing state.
 - Added compliance docs and in-app links for Privacy Policy and Terms.
 - Normalized duplicate iOS background mode and Android permission declarations in `app.json`.
 - Replaced placeholder submit values in `eas.json` with env-variable references.
