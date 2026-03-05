@@ -1,3 +1,5 @@
+import { runtimeVersion } from "expo-updates";
+
 const IS_DEV = process.env.APP_ENV === "development";
 
 export default {
@@ -9,6 +11,12 @@ export default {
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
+    updates: {
+      url: "https://u.expo.dev/a7c6e599-f2d5-4045-9f8b-41e7aac1bdcf",
+    },
+    runtimeVersion: {
+      policy: "appVersion",
+    },
     splash: {
       image: "./assets/splash.png",
       resizeMode: "contain",
