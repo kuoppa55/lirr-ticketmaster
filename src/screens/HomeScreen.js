@@ -273,7 +273,7 @@ export default function HomeScreen({ onOpenSettings }) {
                 {/* Header */}
                 <View style={styles.header}>
                     <View style={styles.titleBox}>
-                        <LEDText text="LIRR" style={styles.titleLarge} flicker={false} />
+                        <LEDText text="LIRR test" style={styles.titleLarge} flicker={false} />
                         <LEDText text="REMINDER" style={styles.titleSmall} flicker={false} />
                     </View>
                     <TouchableOpacity

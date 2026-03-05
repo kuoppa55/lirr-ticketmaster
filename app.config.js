@@ -1,0 +1,84 @@
+const IS_DEV = process.env.APP_ENV === "development";
+
+export default {
+  expo: {
+    name: IS_DEV ? "LIRR Reminder (Dev)" : "LIRR Ticket Reminder",
+    slug: "lirr-ticket-reminder",
+    version: "1.0.0",
+    orientation: "portrait",
+    icon: "./assets/icon.png",
+    userInterfaceStyle: "light",
+    newArchEnabled: true,
+    splash: {
+      image: "./assets/splash.png",
+      resizeMode: "contain",
+      backgroundColor: "#0066CC",
+    },
+    assetBundlePatterns: ["**/*"],
+    ios: {
+      supportsTablet: false,
+      bundleIdentifier: IS_DEV
+        ? "com.jamesk.lirrticketreminder.dev"
+        : "com.jamesk.lirrticketreminder",
+      buildNumber: "1",
+      infoPlist: {
+        UIBackgroundModes: ["location"],
+        NSLocationWhenInUseUsageDescription:
+          "This app needs access to your location to detect when you're at an LIRR station.",
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          "This app needs continuous access to your location to remind you to activate your ticket when approaching LIRR stations, even when the app is in the background.",
+        NSLocationAlwaysUsageDescription:
+          "This app needs continuous access to your location to remind you to activate your ticket when approaching LIRR stations.",
+        ITSAppUsesNonExemptEncryption: false,
+      },
+    },
+    android: {
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#0066CC",
+      },
+      package: IS_DEV
+        ? "com.jamesk.lirrticketreminder.dev"
+        : "com.jamesk.lirrticketreminder",
+      versionCode: 1,
+      permissions: [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+      ],
+    },
+    plugins: [
+      [
+        "expo-location",
+        {
+          locationAlwaysAndWhenInUsePermission:
+            "This app needs continuous access to your location to remind you to activate your ticket when approaching LIRR stations.",
+          locationAlwaysPermission:
+            "This app needs continuous access to your location to remind you to activate your ticket when approaching LIRR stations.",
+          locationWhenInUsePermission:
+            "This app needs access to your location to detect when you're at an LIRR station.",
+          isAndroidBackgroundLocationEnabled: true,
+          isIosBackgroundLocationEnabled: true,
+          isAndroidForegroundServiceEnabled: true,
+        },
+      ],
+      [
+        "expo-notifications",
+        {
+          sounds: [],
+        },
+      ],
+      "expo-asset",
+    ],
+    extra: {
+      eas: {
+        projectId: "a7c6e599-f2d5-4045-9f8b-41e7aac1bdcf",
+      },
+    },
+  },
+};
