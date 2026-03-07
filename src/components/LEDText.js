@@ -19,6 +19,7 @@ import { COLORS, FONTS } from '../theme/colors';
  *     flicker: If true, apply a subtle opacity flicker loop.
  *     glowColor: Color for the text shadow glow.
  *     containerWidth: Width of the visible marquee container (scroll mode).
+ *     onScrollCycleStart: Optional callback fired when a marquee pass starts.
  */
 export default function LEDText({
     text,
@@ -27,12 +28,18 @@ export default function LEDText({
     flicker = true,
     glowColor = COLORS.primary,
     containerWidth = 300,
+    onScrollCycleStart,
 }) {
     const flickerAnim = useRef(new Animated.Value(1)).current;
     const scrollAnim = useRef(new Animated.Value(containerWidth)).current;
     const [textWidth, setTextWidth] = useState(0);
     const measuredWidthRef = useRef(0);
     const scrollLoopRef = useRef(null);
+    const scrollCycleStartRef = useRef(onScrollCycleStart);
+
+    useEffect(() => {
+        scrollCycleStartRef.current = onScrollCycleStart;
+    }, [onScrollCycleStart]);
 
     // Flicker animation: subtle 4-step opacity loop (~3.5s cycle)
     useEffect(() => {
@@ -72,7 +79,8 @@ export default function LEDText({
 
     const stopScrollLoop = useCallback(() => {
         if (scrollLoopRef.current) {
-            scrollLoopRef.current.stop();
+            scrollLoopRef.current.stopped = true;
+            scrollLoopRef.current.animation?.stop();
             scrollLoopRef.current = null;
         }
     }, []);
@@ -83,7 +91,6 @@ export default function LEDText({
         }
 
         stopScrollLoop();
-        scrollAnim.setValue(containerWidth);
 
         const pixelsPerSecond = 50;
         const totalDistance = containerWidth + width;
@@ -92,17 +99,34 @@ export default function LEDText({
             (totalDistance / pixelsPerSecond) * 1000
         );
 
-        const loop = Animated.loop(
-            Animated.timing(scrollAnim, {
+        const loopState = { stopped: false, animation: null };
+        scrollLoopRef.current = loopState;
+
+        const runCycle = () => {
+            if (loopState.stopped) {
+                return;
+            }
+
+            scrollCycleStartRef.current?.();
+            scrollAnim.setValue(containerWidth);
+
+            const animation = Animated.timing(scrollAnim, {
                 toValue: -width,
                 duration,
                 easing: Easing.linear,
                 useNativeDriver: true,
-            }),
-        );
+            });
 
-        scrollLoopRef.current = loop;
-        loop.start();
+            loopState.animation = animation;
+            animation.start(({ finished }) => {
+                if (!finished || loopState.stopped) {
+                    return;
+                }
+                runCycle();
+            });
+        };
+
+        runCycle();
     }, [containerWidth, scrollAnim, stopScrollLoop]);
 
     // Keep marquee loop resilient across text updates and layout jitter.
@@ -118,7 +142,7 @@ export default function LEDText({
         }
 
         return stopScrollLoop;
-    }, [scroll, text, textWidth, containerWidth, startScrollLoop, stopScrollLoop]);
+    }, [scroll, textWidth, containerWidth, startScrollLoop, stopScrollLoop]);
 
     const handleTextLayout = (e) => {
         const width = Math.round(e.nativeEvent.layout.width);

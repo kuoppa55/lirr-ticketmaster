@@ -237,7 +237,7 @@ export default function HomeScreen({ onOpenSettings }) {
 
     const compassSize = Math.min(screenWidth - 40, 340);
 
-    const marqueeText = useMemo(() => {
+    const liveMarqueeText = useMemo(() => {
         if (!isActive) {
             return '  MONITORING PAUSED  ---  TAP BUTTON TO START  ---  LIRR TICKET REMINDER  ';
         }
@@ -253,6 +253,40 @@ export default function HomeScreen({ onOpenSettings }) {
         }
         return `  NOW APPROACHING: ${nearest.name.toUpperCase()} (${dist})  ---  ACTIVATE YOUR TICKET  `;
     }, [isActive, nearestStations, useMetric]);
+
+    const marqueePhase = useMemo(() => {
+        if (!isActive) {
+            return 'paused';
+        }
+        if (nearestStations.length === 0) {
+            return 'scanning';
+        }
+        return 'approaching';
+    }, [isActive, nearestStations.length]);
+
+    const pendingMarqueeTextRef = useRef(liveMarqueeText);
+    pendingMarqueeTextRef.current = liveMarqueeText;
+    const previousMarqueePhaseRef = useRef(marqueePhase);
+
+    const [displayMarqueeText, setDisplayMarqueeText] = useState(liveMarqueeText);
+    const [marqueeInstanceKey, setMarqueeInstanceKey] = useState(0);
+
+    useEffect(() => {
+        if (previousMarqueePhaseRef.current === marqueePhase) {
+            return;
+        }
+
+        previousMarqueePhaseRef.current = marqueePhase;
+        setDisplayMarqueeText(liveMarqueeText);
+        setMarqueeInstanceKey((prev) => prev + 1);
+    }, [marqueePhase, liveMarqueeText]);
+
+    const handleMarqueeCycleStart = useCallback(() => {
+        const nextText = pendingMarqueeTextRef.current;
+        setDisplayMarqueeText((current) =>
+            current === nextText ? current : nextText
+        );
+    }, []);
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -284,11 +318,13 @@ export default function HomeScreen({ onOpenSettings }) {
                 {/* Scrolling marquee */}
                 <View style={styles.marqueeWrapper}>
                     <LEDText
-                        text={marqueeText}
+                        key={marqueeInstanceKey}
+                        text={displayMarqueeText}
                         style={styles.marqueeText}
                         scroll={true}
                         flicker={isActive}
                         containerWidth={screenWidth}
+                        onScrollCycleStart={handleMarqueeCycleStart}
                     />
                 </View>
 
