@@ -5,7 +5,7 @@
  * marquee scroll. Text renders in the pixel font with a configurable glow.
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { Animated, Easing, View, StyleSheet } from 'react-native';
 import { COLORS, FONTS } from '../theme/colors';
 
@@ -20,6 +20,7 @@ import { COLORS, FONTS } from '../theme/colors';
  *     glowColor: Color for the text shadow glow.
  *     containerWidth: Width of the visible marquee container (scroll mode).
  *     onScrollCycleStart: Optional callback fired when a marquee pass starts.
+ *     resetToken: Increment to force marquee restart from the initial position.
  */
 export default function LEDText({
     text,
@@ -29,10 +30,10 @@ export default function LEDText({
     glowColor = COLORS.primary,
     containerWidth = 300,
     onScrollCycleStart,
+    resetToken = 0,
 }) {
     const flickerAnim = useRef(new Animated.Value(1)).current;
     const scrollAnim = useRef(new Animated.Value(containerWidth)).current;
-    const [textWidth, setTextWidth] = useState(0);
     const measuredWidthRef = useRef(0);
     const scrollLoopRef = useRef(null);
     const scrollCycleStartRef = useRef(onScrollCycleStart);
@@ -85,19 +86,13 @@ export default function LEDText({
         }
     }, []);
 
-    const startScrollLoop = useCallback((width) => {
-        if (width <= 0) {
+    const startScrollLoop = useCallback(() => {
+        const initialWidth = measuredWidthRef.current;
+        if (initialWidth <= 0) {
             return;
         }
 
         stopScrollLoop();
-
-        const pixelsPerSecond = 50;
-        const totalDistance = containerWidth + width;
-        const duration = Math.max(
-            1000,
-            (totalDistance / pixelsPerSecond) * 1000
-        );
 
         const loopState = { stopped: false, animation: null };
         scrollLoopRef.current = loopState;
@@ -106,6 +101,18 @@ export default function LEDText({
             if (loopState.stopped) {
                 return;
             }
+
+            const width = measuredWidthRef.current;
+            if (width <= 0) {
+                return;
+            }
+
+            const pixelsPerSecond = 50;
+            const totalDistance = containerWidth + width;
+            const duration = Math.max(
+                1000,
+                (totalDistance / pixelsPerSecond) * 1000
+            );
 
             scrollCycleStartRef.current?.();
             scrollAnim.setValue(containerWidth);
@@ -136,19 +143,20 @@ export default function LEDText({
             return;
         }
 
-        const width = measuredWidthRef.current || textWidth;
-        if (width > 0) {
-            startScrollLoop(width);
+        if (measuredWidthRef.current > 0) {
+            startScrollLoop();
         }
 
         return stopScrollLoop;
-    }, [scroll, textWidth, containerWidth, startScrollLoop, stopScrollLoop]);
+    }, [scroll, containerWidth, resetToken, startScrollLoop, stopScrollLoop]);
 
     const handleTextLayout = (e) => {
         const width = Math.round(e.nativeEvent.layout.width);
         if (width > 0 && width !== measuredWidthRef.current) {
             measuredWidthRef.current = width;
-            setTextWidth(e.nativeEvent.layout.width);
+            if (scroll && !scrollLoopRef.current) {
+                startScrollLoop();
+            }
         }
     };
 

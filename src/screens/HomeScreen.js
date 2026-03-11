@@ -49,6 +49,7 @@ import { COLORS, FONTS, TYPOGRAPHY } from '../theme/colors';
 import { formatDistance } from '../utils/units';
 import { captureEvent } from '../services/telemetry';
 import { logger } from '../utils/logger';
+import { shouldResetMarquee } from './homeMarquee';
 
 /**
  * Home screen component.
@@ -254,32 +255,31 @@ export default function HomeScreen({ onOpenSettings }) {
         return `  NOW APPROACHING: ${nearest.name.toUpperCase()} (${dist})  ---  ACTIVATE YOUR TICKET  `;
     }, [isActive, nearestStations, useMetric]);
 
-    const marqueePhase = useMemo(() => {
-        if (!isActive) {
-            return 'paused';
-        }
-        if (nearestStations.length === 0) {
-            return 'scanning';
-        }
-        return 'approaching';
-    }, [isActive, nearestStations.length]);
-
     const pendingMarqueeTextRef = useRef(liveMarqueeText);
     pendingMarqueeTextRef.current = liveMarqueeText;
-    const previousMarqueePhaseRef = useRef(marqueePhase);
+    const previousIsActiveRef = useRef(isActive);
+    const previousHasStationsRef = useRef(nearestStations.length > 0);
 
     const [displayMarqueeText, setDisplayMarqueeText] = useState(liveMarqueeText);
-    const [marqueeInstanceKey, setMarqueeInstanceKey] = useState(0);
+    const [marqueeResetToken, setMarqueeResetToken] = useState(0);
 
     useEffect(() => {
-        if (previousMarqueePhaseRef.current === marqueePhase) {
-            return;
-        }
+        const hasStations = nearestStations.length > 0;
+        const shouldReset = shouldResetMarquee({
+            prevIsActive: previousIsActiveRef.current,
+            nextIsActive: isActive,
+            prevHasStations: previousHasStationsRef.current,
+            nextHasStations: hasStations,
+        });
 
-        previousMarqueePhaseRef.current = marqueePhase;
-        setDisplayMarqueeText(liveMarqueeText);
-        setMarqueeInstanceKey((prev) => prev + 1);
-    }, [marqueePhase, liveMarqueeText]);
+        previousIsActiveRef.current = isActive;
+        previousHasStationsRef.current = hasStations;
+
+        if (shouldReset) {
+            setDisplayMarqueeText(liveMarqueeText);
+            setMarqueeResetToken((prev) => prev + 1);
+        }
+    }, [isActive, nearestStations.length, liveMarqueeText]);
 
     const handleMarqueeCycleStart = useCallback(() => {
         const nextText = pendingMarqueeTextRef.current;
@@ -318,13 +318,13 @@ export default function HomeScreen({ onOpenSettings }) {
                 {/* Scrolling marquee */}
                 <View style={styles.marqueeWrapper}>
                     <LEDText
-                        key={marqueeInstanceKey}
                         text={displayMarqueeText}
                         style={styles.marqueeText}
                         scroll={true}
                         flicker={isActive}
                         containerWidth={screenWidth}
                         onScrollCycleStart={handleMarqueeCycleStart}
+                        resetToken={marqueeResetToken}
                     />
                 </View>
 

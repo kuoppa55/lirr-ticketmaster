@@ -124,4 +124,87 @@ describe('LEDText', () => {
             tree.unmount();
         });
     });
+
+    test('does not restart mid-pass when text width changes', () => {
+        const onScrollCycleStart = jest.fn();
+        let tree;
+
+        act(() => {
+            tree = renderer.create(
+                <LEDText
+                    text="WIDTH TEST A"
+                    scroll={true}
+                    flicker={false}
+                    onScrollCycleStart={onScrollCycleStart}
+                />
+            );
+        });
+
+        triggerTextLayout(tree, 160);
+        expect(Animated.timing).toHaveBeenCalledTimes(1);
+
+        act(() => {
+            tree.update(
+                <LEDText
+                    text="WIDTH TEST BBBBBBB"
+                    scroll={true}
+                    flicker={false}
+                    onScrollCycleStart={onScrollCycleStart}
+                />
+            );
+        });
+
+        triggerTextLayout(tree, 220);
+        expect(Animated.timing).toHaveBeenCalledTimes(1);
+
+        act(() => {
+            createdAnimations[0].onEnd?.({ finished: true });
+        });
+
+        expect(Animated.timing).toHaveBeenCalledTimes(2);
+        expect(Animated.timing.mock.calls[1][1].toValue).toBe(-220);
+
+        act(() => {
+            tree.unmount();
+        });
+    });
+
+    test('restarts marquee when resetToken changes', () => {
+        const onScrollCycleStart = jest.fn();
+        let tree;
+
+        act(() => {
+            tree = renderer.create(
+                <LEDText
+                    text="RESET TEST"
+                    scroll={true}
+                    flicker={false}
+                    onScrollCycleStart={onScrollCycleStart}
+                    resetToken={0}
+                />
+            );
+        });
+
+        triggerTextLayout(tree, 140);
+        expect(Animated.timing).toHaveBeenCalledTimes(1);
+
+        act(() => {
+            tree.update(
+                <LEDText
+                    text="RESET TEST"
+                    scroll={true}
+                    flicker={false}
+                    onScrollCycleStart={onScrollCycleStart}
+                    resetToken={1}
+                />
+            );
+        });
+
+        expect(createdAnimations[0].stop).toHaveBeenCalledTimes(1);
+        expect(Animated.timing).toHaveBeenCalledTimes(2);
+
+        act(() => {
+            tree.unmount();
+        });
+    });
 });
