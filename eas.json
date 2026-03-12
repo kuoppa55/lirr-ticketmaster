@@ -19,6 +19,7 @@
       }
     },
     "preview": {
+      "channel": "preview",
       "distribution": "internal",
       "ios": {
         "simulator": false
@@ -32,6 +33,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "distribution": "store",
       "ios": {
         "autoIncrement": true
