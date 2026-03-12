@@ -51,6 +51,8 @@ import { captureEvent } from '../services/telemetry';
 import { logger } from '../utils/logger';
 import { shouldResetMarquee } from './homeMarquee';
 
+const MARQUEE_DEBUG_BUILD = 'MARQUEE_DEBUG_2026_03_12_A';
+
 /**
  * Home screen component.
  *
@@ -262,15 +264,100 @@ export default function HomeScreen({ onOpenSettings }) {
 
     const [displayMarqueeText, setDisplayMarqueeText] = useState(liveMarqueeText);
     const [marqueeResetToken, setMarqueeResetToken] = useState(0);
+    const displayMarqueeTextRef = useRef(displayMarqueeText);
+    const [marqueeDebug, setMarqueeDebug] = useState({
+        resetChecks: 0,
+        resetHits: 0,
+        cycleStarts: 0,
+        textSwaps: 0,
+        ledMounts: 0,
+        ledUnmounts: 0,
+        ledEffectRuns: 0,
+        lastShouldReset: false,
+        lastResetReason: 'none',
+        lastPrevIsActive: false,
+        lastNextIsActive: false,
+        lastPrevHasStations: false,
+        lastNextHasStations: false,
+        lastNearestCount: 0,
+        lastScreenWidth: screenWidth,
+        lastResetToken: 0,
+        lastEffectResetToken: 0,
+        lastEffectContainerWidth: screenWidth,
+        lastEffectMeasuredWidth: 0,
+        lastDidSwapText: false,
+    });
 
     useEffect(() => {
+        displayMarqueeTextRef.current = displayMarqueeText;
+    }, [displayMarqueeText]);
+
+    const handleMarqueeLifecycleDebug = useCallback((event, payload = {}) => {
+        setMarqueeDebug((prev) => {
+            if (event === 'mounted') {
+                return {
+                    ...prev,
+                    ledMounts: prev.ledMounts + 1,
+                };
+            }
+
+            if (event === 'unmounted') {
+                return {
+                    ...prev,
+                    ledUnmounts: prev.ledUnmounts + 1,
+                };
+            }
+
+            if (event === 'scroll_effect_run') {
+                return {
+                    ...prev,
+                    ledEffectRuns: prev.ledEffectRuns + 1,
+                    lastEffectResetToken: payload.resetToken ?? prev.lastEffectResetToken,
+                    lastEffectContainerWidth:
+                        payload.containerWidth ?? prev.lastEffectContainerWidth,
+                    lastEffectMeasuredWidth:
+                        payload.measuredWidth ?? prev.lastEffectMeasuredWidth,
+                };
+            }
+
+            return prev;
+        });
+    }, []);
+
+    useEffect(() => {
+        const prevIsActive = previousIsActiveRef.current;
         const hasStations = nearestStations.length > 0;
+        const prevHasStations = previousHasStationsRef.current;
+        const didToggleMonitoring = prevIsActive !== isActive;
+        const didTransitionBetweenScanAndApproach =
+            prevIsActive &&
+            isActive &&
+            prevHasStations !== hasStations;
         const shouldReset = shouldResetMarquee({
-            prevIsActive: previousIsActiveRef.current,
+            prevIsActive,
             nextIsActive: isActive,
-            prevHasStations: previousHasStationsRef.current,
+            prevHasStations,
             nextHasStations: hasStations,
         });
+
+        setMarqueeDebug((prev) => ({
+            ...prev,
+            resetChecks: prev.resetChecks + 1,
+            resetHits: prev.resetHits + (shouldReset ? 1 : 0),
+            lastShouldReset: shouldReset,
+            lastResetReason: didToggleMonitoring
+                ? 'monitor-toggle'
+                : didTransitionBetweenScanAndApproach
+                  ? 'scan-approach-transition'
+                  : 'none',
+            lastPrevIsActive: prevIsActive,
+            lastNextIsActive: isActive,
+            lastPrevHasStations: prevHasStations,
+            lastNextHasStations: hasStations,
+            lastNearestCount: nearestStations.length,
+            lastScreenWidth: screenWidth,
+            lastResetToken: marqueeResetToken,
+        }));
 
         previousIsActiveRef.current = isActive;
         previousHasStationsRef.current = hasStations;
@@ -279,10 +366,25 @@ export default function HomeScreen({ onOpenSettings }) {
             setDisplayMarqueeText(liveMarqueeText);
             setMarqueeResetToken((prev) => prev + 1);
         }
-    }, [isActive, nearestStations.length, liveMarqueeText]);
+    }, [
+        isActive,
+        nearestStations.length,
+        liveMarqueeText,
+        marqueeResetToken,
+        screenWidth,
+    ]);
 
     const handleMarqueeCycleStart = useCallback(() => {
         const nextText = pendingMarqueeTextRef.current;
+        const didSwapText = displayMarqueeTextRef.current !== nextText;
+
+        setMarqueeDebug((prev) => ({
+            ...prev,
+            cycleStarts: prev.cycleStarts + 1,
+            textSwaps: prev.textSwaps + (didSwapText ? 1 : 0),
+            lastDidSwapText: didSwapText,
+        }));
+
         setDisplayMarqueeText((current) =>
             current === nextText ? current : nextText
         );
@@ -324,8 +426,45 @@ export default function HomeScreen({ onOpenSettings }) {
                         flicker={isActive}
                         containerWidth={screenWidth}
                         onScrollCycleStart={handleMarqueeCycleStart}
+                        onDebugLifecycleEvent={handleMarqueeLifecycleDebug}
                         resetToken={marqueeResetToken}
                     />
+                </View>
+
+                <View style={styles.debugPanel}>
+                    <Text style={styles.debugText}>
+                        {MARQUEE_DEBUG_BUILD}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        token:{marqueeResetToken} width:{screenWidth} stations:
+                        {nearestStations.length}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        checks:{marqueeDebug.resetChecks} hits:{marqueeDebug.resetHits}{' '}
+                        reason:{marqueeDebug.lastResetReason}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        prev active/stations:{' '}
+                        {String(marqueeDebug.lastPrevIsActive)}/
+                        {String(marqueeDebug.lastPrevHasStations)} next:{' '}
+                        {String(marqueeDebug.lastNextIsActive)}/
+                        {String(marqueeDebug.lastNextHasStations)}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        cycles:{marqueeDebug.cycleStarts} swaps:
+                        {marqueeDebug.textSwaps} lastSwap:
+                        {String(marqueeDebug.lastDidSwapText)}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        LED mounts:{marqueeDebug.ledMounts} unmounts:
+                        {marqueeDebug.ledUnmounts} effects:
+                        {marqueeDebug.ledEffectRuns}
+                    </Text>
+                    <Text style={styles.debugText}>
+                        effect token:{marqueeDebug.lastEffectResetToken} effect
+                        width:{marqueeDebug.lastEffectContainerWidth} measured:
+                        {marqueeDebug.lastEffectMeasuredWidth}
+                    </Text>
                 </View>
 
                 {/* Compass radar */}
@@ -478,6 +617,21 @@ const styles = StyleSheet.create({
     marqueeText: {
         fontSize: TYPOGRAPHY.bodySize,
         color: COLORS.primary,
+    },
+    debugPanel: {
+        marginHorizontal: 20,
+        marginBottom: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderColor: COLORS.cooldownBorder,
+        backgroundColor: COLORS.cooldownBg,
+    },
+    debugText: {
+        fontSize: 9,
+        fontFamily: FONTS.pixel,
+        color: COLORS.primary,
+        marginBottom: 4,
     },
     compassFallbackText: {
         fontSize: 13,
