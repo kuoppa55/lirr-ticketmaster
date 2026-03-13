@@ -20,7 +20,6 @@ import { COLORS, FONTS } from '../theme/colors';
  *     glowColor: Color for the text shadow glow.
  *     containerWidth: Width of the visible marquee container (scroll mode).
  *     onScrollCycleStart: Optional callback fired when a marquee pass starts.
- *     onDebugLifecycleEvent: Optional callback for marquee lifecycle debug events.
  *     resetToken: Increment to force marquee restart from the initial position.
  */
 export default function LEDText({
@@ -31,7 +30,6 @@ export default function LEDText({
     glowColor = COLORS.primary,
     containerWidth = 300,
     onScrollCycleStart,
-    onDebugLifecycleEvent,
     resetToken = 0,
 }) {
     const flickerAnim = useRef(new Animated.Value(1)).current;
@@ -39,22 +37,10 @@ export default function LEDText({
     const measuredWidthRef = useRef(0);
     const scrollLoopRef = useRef(null);
     const scrollCycleStartRef = useRef(onScrollCycleStart);
-    const debugLifecycleRef = useRef(onDebugLifecycleEvent);
 
     useEffect(() => {
         scrollCycleStartRef.current = onScrollCycleStart;
     }, [onScrollCycleStart]);
-
-    useEffect(() => {
-        debugLifecycleRef.current = onDebugLifecycleEvent;
-    }, [onDebugLifecycleEvent]);
-
-    useEffect(() => {
-        debugLifecycleRef.current?.('mounted');
-        return () => {
-            debugLifecycleRef.current?.('unmounted');
-        };
-    }, []);
 
     // Flicker animation: subtle 4-step opacity loop (~3.5s cycle)
     useEffect(() => {
@@ -157,25 +143,12 @@ export default function LEDText({
             return;
         }
 
-        debugLifecycleRef.current?.('scroll_effect_run', {
-            resetToken,
-            containerWidth,
-            measuredWidth: measuredWidthRef.current,
-        });
-
         if (measuredWidthRef.current > 0) {
             startScrollLoop();
         }
 
         return stopScrollLoop;
-    }, [
-        scroll,
-        containerWidth,
-        resetToken,
-        startScrollLoop,
-        stopScrollLoop,
-        onDebugLifecycleEvent,
-    ]);
+    }, [scroll, containerWidth, resetToken, startScrollLoop, stopScrollLoop]);
 
     const handleTextLayout = (e) => {
         const width = Math.round(e.nativeEvent.layout.width);
